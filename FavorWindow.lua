@@ -13,7 +13,7 @@ local rgba = U.rgba
 local FW = {}
 ns.favorWindow = FW
 
-local ROW_H = 60
+local ROW_H = 70
 local DOT = "  \194\183  "
 
 local f, T
@@ -26,23 +26,25 @@ function FW.lines(res)
   local c = res.c
   local l2, l3 = {}, {}
   local b = res.best
+  -- line 2: what goes in, and what you get back
   if b then
-    l2[#l2 + 1] = ("Fill: |cffffffff%s|r"):format(F().optionName(b))
-    l2[#l2 + 1] = F().howText(b)
-    l2[#l2 + 1] = ns.money(b.cost)
+    l2[#l2 + 1] = ("Fill: |cffffffff%s|r (%s)"):format(F().optionName(b), F().howText(b))
     local n = 0
     for _, o in ipairs(res.options) do if o ~= b then n = n + 1 end end
     if n > 0 then l2[#l2 + 1] = ("%d other bundle%s"):format(n, n == 1 and "" or "s") end
   else
     l2[#l2 + 1] = "Fill: no price for any bundle"
   end
-  l3[#l3 + 1] = c.favor and ("|cffffd100+%d Favor|r"):format(c.favor) or "Favor unknown"
-  if c.money then l3[#l3 + 1] = ns.money(c.money) end
-  l3[#l3 + 1] = c.rep == 0 and "no reputation" or c.rep and (c.rep .. " reputation") or "reputation unknown"
-  if res.crate.how == "owned" then l3[#l3 + 1] = ("crate: you have %d"):format(res.crate.have)
-  elseif res.crate.cost then l3[#l3 + 1] = "crate " .. ns.money(res.crate.cost)
-  else l3[#l3 + 1] = "crate: no auction price" end
-  if res.total then l3[#l3 + 1] = "total " .. ns.money(res.total) end
+  l2[#l2 + 1] = c.favor and ("|cffffd100+%d Favor|r"):format(c.favor) or "Favor unknown"
+  if c.money then l2[#l2 + 1] = ns.money(c.money) .. " back" end
+  if c.rep and c.rep > 0 then l2[#l2 + 1] = c.rep .. " reputation" end
+  -- line 3: the cost, split: crate + fill = total
+  local crate
+  if res.crate.how == "owned" then crate = ("crate |cffffffff%s|r (you have %d)"):format(ns.money(0), res.crate.have)
+  elseif res.crate.cost then crate = "crate |cffffffff" .. ns.money(res.crate.cost) .. "|r"
+  else crate = "crate: no auction price" end
+  local fill = b and b.cost and ("fill |cffffffff" .. ns.money(b.cost) .. "|r") or "fill: ?"
+  l3[#l3 + 1] = crate .. "  +  " .. fill .. (res.total and ("  =  |cffffffff" .. ns.money(res.total) .. "|r") or "")
   if res.why then l3 = { "|cff8d94a3" .. "Not ranked: " .. res.why .. "|r" } end
   return table.concat(l2, DOT), table.concat(l3, DOT)
 end
@@ -93,7 +95,10 @@ local function buildRow(list)
   end, 84)
   r.add:SetPoint("RIGHT", r.map, "LEFT", -6, 0)
   r.per:SetPoint("TOPRIGHT", -10, -8)
-  for _, t in ipairs({ r.name, r.l2, r.l3 }) do t:SetPoint("RIGHT", r, "RIGHT", -150, 0) end
+  r.tot = UI.Text(r, T.fontSmall + 1, T.muted)
+  r.tot:SetJustifyH("RIGHT")
+  r.tot:SetPoint("TOPRIGHT", r.per, "BOTTOMRIGHT", 0, -2)
+  for _, t in ipairs({ r.name, r.l2, r.l3 }) do t:SetPoint("RIGHT", r, "RIGHT", -160, 0) end
   r.l3:SetPoint("RIGHT", r.add, "LEFT", -8, 0)
   r:SetScript("OnClick", function(self)
     if not self.item then return end
@@ -118,11 +123,12 @@ local function paintRow(r, res, i)
   local l2, l3 = FW.lines(res)
   r.l2:SetText(l2)
   r.l3:SetText(l3)
-  if res.perFavor then
-    r.per:SetText(ns.money(res.perFavor) .. "|cff8d94a3 /Favor|r")
-  else
-    r.per:SetText("|cff8d94a3? /Favor|r")
-  end
+  local byTotal = S().favorSort == "total"
+  local perText = res.perFavor and (ns.money(res.perFavor) .. "|cff8d94a3 /Favor|r") or "|cff8d94a3? /Favor|r"
+  local totText = res.total and (ns.money(res.total) .. "|cff8d94a3 total|r") or "|cff8d94a3? total|r"
+  -- the number you sort by goes big on top
+  r.per:SetText(byTotal and totText or perText)
+  r.tot:SetText(byTotal and perText or totText)
   local canAdd = F().craftNeed(res) ~= nil
   r.add:SetShown(canAdd)
   r:SetBase(T.surface)
@@ -136,7 +142,7 @@ end
 local function make()
   if f then return f end
   f = ns.widgets.Window({ name = "EverlookCraftFavor", posKey = "favor", title = "Merchant's Favor", icon = "coins",
-    width = 780, height = 600, minWidth = 760, minHeight = 380, point = "CENTER", x = 220, y = 20, top = 100,
+    width = 780, height = 600, minWidth = 760, minHeight = 380, point = "CENTER", x = 220, y = 20, top = 130,
     hint = "Hover a crate for every bundle. Fill it with one of them." })
   T = f.T
   -- filters: tier chips, then faction, level and bags
@@ -160,6 +166,18 @@ local function make()
   f.horde:SetPoint("RIGHT", f.level, "LEFT", -12, 0)
   f.alliance = chip(bar, "Alliance", function() S().favorSide = "a"; FW.render() end, 66)
   f.alliance:SetPoint("RIGHT", f.horde, "LEFT", -4, 0)
+  -- sort: gold per Favor, or the cheapest total (crate + fill)
+  local sortBar = CreateFrame("Frame", nil, f)
+  sortBar:SetPoint("TOPLEFT", bar, "BOTTOMLEFT", 0, -6)
+  sortBar:SetPoint("RIGHT", f, "RIGHT", -16, 0)
+  sortBar:SetHeight(24)
+  local lbl = UI.Text(sortBar, T.fontSmall + 1, T.muted)
+  lbl:SetPoint("LEFT", 0, 0)
+  lbl:SetText("Sort by")
+  f.sortPer = chip(sortBar, "Cheapest per Favor", function() S().favorSort = "per"; FW.render() end, 140)
+  f.sortPer:SetPoint("LEFT", lbl, "RIGHT", 8, 0)
+  f.sortTotal = chip(sortBar, "Cheapest total", function() S().favorSort = "total"; FW.render() end, 116)
+  f.sortTotal:SetPoint("LEFT", f.sortPer, "RIGHT", 4, 0)
   f.list = ns.widgets.VList(f.body, T, ROW_H, buildRow, paintRow, 4, "No crate matches the filters.")
   f.list:SetAllPoints(f.body)
   f:SetPrimary("Send missing to Auctions", function() FW.primary() end, 190)
@@ -190,11 +208,14 @@ function FW.render()
   f.alliance:SetActive(side == "a")
   f.horde:SetActive(side == "h")
   f.level:SetActive(s.favorMyLevel and true or false)
+  f.sortPer:SetActive(s.favorSort ~= "total")
+  f.sortTotal:SetActive(s.favorSort == "total")
   f.bags:SetActive(s.favorBagsFree and true or false)
   local ranked = 0
   for _, res in ipairs(rows) do if res.perFavor then ranked = ranked + 1 end end
   local src = ns.prices.auctionsLoaded() and "EverlookDB Auctions" or ns.prices.auctionatorLoaded() and "Auctionator" or nil
-  f.sub:SetText(src and ("%d crates ranked by gold per Favor%sprices: %s%s"):format(ranked, DOT, src,
+  f.sub:SetText(src and ("%d crates ranked by %s%sprices: %s%s"):format(ranked,
+    s.favorSort == "total" and "total cost (crate + fill)" or "gold per Favor", DOT, src,
     s.favorBagsFree and (DOT .. "what you have counts as free") or "")
     or "|cffffd100No auction prices: install EverlookDB Auctions (or Auctionator) and scan the auction house.|r")
   local npc = ns.DATA.npcs[ns.favor.npc(side) or 0]

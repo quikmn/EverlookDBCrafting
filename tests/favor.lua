@@ -145,6 +145,17 @@ step("a crate not on the auction house, or with unknown Favor, sorts last and sa
   for i = 2, #rows do
     if rows[i].perFavor and rows[i - 1].perFavor then check(rows[i].perFavor >= rows[i - 1].perFavor, "sorted by gold per Favor") end
   end
+  -- sorted by the cheapest total (crate + fill) instead
+  local byTotal = F.rank({ sort = "total" })
+  local ranked = 0
+  for i = 1, #byTotal do
+    if byTotal[i].perFavor then
+      ranked = ranked + 1
+      eq(byTotal[i].total, byTotal[i].best.cost + byTotal[i].crate.cost, "total = crate + fill")
+      if i > 1 and byTotal[i - 1].perFavor then check(byTotal[i].total >= byTotal[i - 1].total, "sorted by total") end
+    end
+  end
+  check(ranked > 1, "ranked rows to sort by total")
 end)
 
 step("filters: your level, a tier", function()

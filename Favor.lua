@@ -147,8 +147,11 @@ function F.rank(o)
       out[#out + 1] = F.evaluate(c, { bagsFree = o.bagsFree, unit = unit })
     end
   end
+  -- o.sort: "per" (gold per Favor, the default) or "total" (the cheapest crate plus fill, for a little Favor fast)
+  local key = o.sort == "total" and "total" or "perFavor"
   table.sort(out, function(x, y)
     if (x.perFavor ~= nil) ~= (y.perFavor ~= nil) then return x.perFavor ~= nil end
+    if x[key] and x[key] ~= y[key] then return x[key] < y[key] end
     if x.perFavor and x.perFavor ~= y.perFavor then return x.perFavor < y.perFavor end
     if x.c.tier ~= y.c.tier then return x.c.tier < y.c.tier end
     return x.c.id < y.c.id
@@ -160,7 +163,7 @@ end
 function F.current()
   local s = ns.settings()
   local level = s.favorMyLevel and (ns.plain(ns.try(UnitLevel, "player")) or nil) or nil
-  return F.rank({ bagsFree = s.favorBagsFree, level = level, tier = s.favorTier })
+  return F.rank({ bagsFree = s.favorBagsFree, level = level, tier = s.favorTier, sort = s.favorSort })
 end
 
 function F.side() return ns.settings().favorSide or ns.side() end
