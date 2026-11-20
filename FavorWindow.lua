@@ -35,7 +35,6 @@ function FW.lines(res)
   else
     l2[#l2 + 1] = "Fill: no price for any bundle"
   end
-  l2[#l2 + 1] = c.favor and ("|cffffd100+%d Favor|r"):format(c.favor) or "Favor unknown"
   if c.money then l2[#l2 + 1] = ns.money(c.money) .. " back" end
   if c.rep and c.rep > 0 then l2[#l2 + 1] = c.rep .. " reputation" end
   -- line 3: the cost, split: crate + fill = total
@@ -84,22 +83,26 @@ local function buildRow(list)
   r.l3 = UI.Text(r, T.fontSmall + 1, T.muted)
   r.l3:SetPoint("TOPLEFT", r.l2, "BOTTOMLEFT", 0, -4)
   r.l3:SetWordWrap(false)
-  r.per = UI.Text(r, T.fontTitle, T.text)
+  -- the right column: total cost, + Favor, gold per Favor (the buttons sit at the far right)
+  r.tot = UI.Text(r, T.font, T.text)
+  r.tot:SetJustifyH("RIGHT")
+  r.fav = UI.Text(r, T.font, T.text)
+  r.fav:SetJustifyH("RIGHT")
+  r.per = UI.Text(r, T.font, T.text)
   r.per:SetJustifyH("RIGHT")
   r.map = ns.widgets.SmallButton(r, "Map", function() local id = F().npc(); if id then ns.map.pin(id) end end, 46)
-  r.map:SetPoint("BOTTOMRIGHT", -8, 7)
+  r.map:SetPoint("TOPRIGHT", -8, -10)
   r.add = ns.widgets.SmallButton(r, "Add to list", function()
     if not r.item then return end
     local _, msg = F().addToList(r.item)
     ns.print(msg)
   end, 84)
-  r.add:SetPoint("RIGHT", r.map, "LEFT", -6, 0)
-  r.per:SetPoint("TOPRIGHT", -10, -8)
-  r.tot = UI.Text(r, T.fontSmall + 1, T.muted)
-  r.tot:SetJustifyH("RIGHT")
-  r.tot:SetPoint("TOPRIGHT", r.per, "BOTTOMRIGHT", 0, -2)
-  for _, t in ipairs({ r.name, r.l2, r.l3 }) do t:SetPoint("RIGHT", r, "RIGHT", -160, 0) end
-  r.l3:SetPoint("RIGHT", r.add, "LEFT", -8, 0)
+  r.add:ClearAllPoints()
+  r.add:SetPoint("TOPRIGHT", r.map, "BOTTOMRIGHT", 0, -4)
+  r.tot:SetPoint("TOPRIGHT", -102, -8)
+  r.fav:SetPoint("TOPRIGHT", r.tot, "BOTTOMRIGHT", 0, -4)
+  r.per:SetPoint("TOPRIGHT", r.fav, "BOTTOMRIGHT", 0, -4)
+  for _, t in ipairs({ r.name, r.l2, r.l3 }) do t:SetPoint("RIGHT", r, "RIGHT", -270, 0) end
   r:SetScript("OnClick", function(self)
     if not self.item then return end
     FW.selected = self.item.c.id
@@ -124,11 +127,11 @@ local function paintRow(r, res, i)
   r.l2:SetText(l2)
   r.l3:SetText(l3)
   local byTotal = S().favorSort == "total"
-  local perText = res.perFavor and (ns.money(res.perFavor) .. "|cff8d94a3 /Favor|r") or "|cff8d94a3? /Favor|r"
-  local totText = res.total and (ns.money(res.total) .. "|cff8d94a3 total|r") or "|cff8d94a3? total|r"
-  -- the number you sort by goes big on top
-  r.per:SetText(byTotal and totText or perText)
-  r.tot:SetText(byTotal and perText or totText)
+  local MUTE, ON = "|cff8d94a3", "|cffffffff"
+  -- what you sort by is white, the other grey
+  r.tot:SetText((byTotal and ON or MUTE) .. "Total cost:|r " .. (res.total and ("~" .. ns.money(res.total)) or MUTE .. "?|r"))
+  r.fav:SetText(c.favor and ("|cffffd100+%d Favor|r"):format(c.favor) or (MUTE .. "Favor unknown|r"))
+  r.per:SetText(res.perFavor and ((byTotal and MUTE or ON) .. "per Favor:|r ~" .. ns.money(res.perFavor)) or (MUTE .. "per Favor: ?|r"))
   local canAdd = F().craftNeed(res) ~= nil
   r.add:SetShown(canAdd)
   r:SetBase(T.surface)

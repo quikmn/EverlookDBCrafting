@@ -1,7 +1,7 @@
 # EverlookDB Crafting
 
 ## Unreleased
-- Merchant's Favor: each crate shows its cost split, crate + fill = total, with the total and the gold per Favor on the right. Sort by "Cheapest per Favor" or "Cheapest total" (the cheapest crate to fill for some Favor now); the number you sort by is the big one.
+- Merchant's Favor: each crate's numbers sit on the right: total cost, + Favor, and gold per Favor. On the left: the crate, what to fill it with, and the cost split, crate + fill = total. Sort by "Cheapest per Favor" or "Cheapest total" (the cheapest crate to fill for some Favor now).
 - Merchant's Favor (`/ecraft favor`, also a page in /ecraft): every Waylaid Crate ranked by gold per Favor at today's prices. A crate's cost is the crate on the auction house plus its cheapest ONE bundle (each item bought or crafted with a recipe one of your characters knows, whichever is cheaper); the other bundles show on hover. Each row has the Favor, the money and reputation it pays (crate turn-ins give none), the total, a Map button to Marcy Baker or Dokimi and, when the cheapest bundle is crafted, "Add to list". Filters: tier, your level, Alliance or Horde, and "My bags free" (crates and materials you have cost nothing). The one button sends what to buy for the picked crate to EverlookDB Auctions' shopping list "Merchant's Favor". Crates without a known Favor (Artisan) or a price sort last and say why. A Waylaid Crate's tooltip shows "Merchant's Favor 15, ~2s per Favor" and the cheapest fill. Crate data: the game files (bundles), AllTheThings (Favor, MIT), EG Link (money, reputation, CC BY 4.0).
 
 ## v0.1.1 (2026-11-20)
