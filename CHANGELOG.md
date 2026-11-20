@@ -1,6 +1,6 @@
 # EverlookDB Crafting
 
-## Unreleased
+## v0.1.1 (2026-11-20)
 - The addon has its own icon in the addon list (the EverlookDB stack with an anvil).
 
 ## v0.1.0 (2026-11-20)
