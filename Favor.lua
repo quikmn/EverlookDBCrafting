@@ -18,6 +18,12 @@ ns.favor = F
 
 F.TIERS = { "Apprentice", "Journeyman", "Expert", "Artisan" }
 F.LIST_NAME = "Merchant's Favor"
+-- each crate has its own list ("Favor: Apprentice Textiles"), so making one doesn't replace another
+function F.listName(res)
+  local name = res and res.c and ns.itemInfo(res.c.id)
+  name = type(name) == "string" and name:gsub("^Waylaid Crate: ", "") or nil
+  return name and name ~= "" and ("Favor: " .. name) or F.LIST_NAME
+end
 local INF = math.huge
 
 ns.DEFAULTS.settings.favorBagsFree = false  -- materials and crates you have cost nothing
@@ -250,9 +256,10 @@ function F.sendToAuctions(res)
   if not res then return false, "pick a crate first." end
   local items = F.shoppingItems(res)
   if #items == 0 then return false, "nothing to buy at the auction house for this crate." end
-  local ok, done, why = pcall(api.addShoppingList, F.LIST_NAME, items)
+  local listName = F.listName(res)
+  local ok, done, why = pcall(api.addShoppingList, listName, items)
   if not ok then return false, "EverlookDB Auctions refused the list." end
-  if done then return true, ("%d items are on the shopping list \"%s\" in EverlookDB Auctions."):format(#items, F.LIST_NAME) end
+  if done then return true, ("%d items are on the shopping list \"%s\" in EverlookDB Auctions."):format(#items, listName) end
   return false, tostring(why or "unknown reason")
 end
 

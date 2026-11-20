@@ -196,7 +196,7 @@ step("/ecraft favor opens the window; the primary sends the picked crate's shopp
   check(top and top.perFavor, "a ranked crate first")
   sent = nil
   ns.favorWindow.primary()
-  check(sent and sent.name == "Merchant's Favor", "list sent")
+  check(sent and sent.name:find("^Favor: ") ~= nil, "list sent under the crate's own name: " .. tostring(sent and sent.name))
   check(#sent.items >= 1, "items")
   ns.favorWindow.selected = FABRICS
   ns.favorWindow.render()

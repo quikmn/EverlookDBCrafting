@@ -13,7 +13,7 @@ local rgba = U.rgba
 local FW = {}
 ns.favorWindow = FW
 
-local ROW_H = 70
+local ROW_H = 82
 local DOT = "  \194\183  "
 
 local f, T
@@ -90,19 +90,36 @@ local function buildRow(list)
   r.fav:SetJustifyH("RIGHT")
   r.per = UI.Text(r, T.font, T.text)
   r.per:SetJustifyH("RIGHT")
-  r.map = ns.widgets.SmallButton(r, "Map", function() local id = F().npc(); if id then ns.map.pin(id) end end, 46)
+  r.map = ns.widgets.SmallButton(r, "Map", function() local id = F().npc(); if id then ns.map.pin(id) end end, 96)
   r.map:SetPoint("TOPRIGHT", -8, -10)
-  r.add = ns.widgets.SmallButton(r, "Add to list", function()
+  r.add = ns.widgets.SmallButton(r, "Craft list", function()
     if not r.item then return end
     local _, msg = F().addToList(r.item)
     ns.print(msg)
   end, 84)
+  -- this crate's shopping list: the crate (unless you have it) and its cheapest fill, to EverlookDB Auctions
+  r.shop = ns.widgets.SmallButton(r, "Shopping list", function()
+    if not r.item then return end
+    local ok, msg = F().sendToAuctions(r.item)
+    ns.print(ok and msg or ("couldn't make the list: " .. tostring(msg)))
+  end, 96)
+  r.shop:SetPoint("TOPRIGHT", r.map, "BOTTOMRIGHT", 0, -4)
+  r.shop:HookScript("OnEnter", function(self)
+    GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+    GameTooltip:AddLine("Shopping list", 1, 1, 1)
+    GameTooltip:AddLine("Puts this crate and its cheapest fill on the shopping list \"" .. F().listName(r.item) ..
+      "\" in EverlookDB Auctions, minus what you already have. Each crate has its own list. Buy them in its Shopping tab.",
+      0.8, 0.8, 0.8, true)
+    GameTooltip:Show()
+  end)
+  r.shop:HookScript("OnLeave", function() GameTooltip:Hide() end)
   r.add:ClearAllPoints()
-  r.add:SetPoint("TOPRIGHT", r.map, "BOTTOMRIGHT", 0, -4)
-  r.tot:SetPoint("TOPRIGHT", -102, -8)
+  r.add:SetWidth(96)
+  r.add:SetPoint("TOPRIGHT", r.shop, "BOTTOMRIGHT", 0, -4)
+  r.tot:SetPoint("TOPRIGHT", -114, -10)
   r.fav:SetPoint("TOPRIGHT", r.tot, "BOTTOMRIGHT", 0, -4)
   r.per:SetPoint("TOPRIGHT", r.fav, "BOTTOMRIGHT", 0, -4)
-  for _, t in ipairs({ r.name, r.l2, r.l3 }) do t:SetPoint("RIGHT", r, "RIGHT", -270, 0) end
+  for _, t in ipairs({ r.name, r.l2, r.l3 }) do t:SetPoint("RIGHT", r, "RIGHT", -280, 0) end
   r:SetScript("OnClick", function(self)
     if not self.item then return end
     FW.selected = self.item.c.id
@@ -134,6 +151,8 @@ local function paintRow(r, res, i)
   r.per:SetText(res.perFavor and ((byTotal and MUTE or ON) .. "per Favor:|r ~" .. ns.money(res.perFavor)) or (MUTE .. "per Favor: ?|r"))
   local canAdd = F().craftNeed(res) ~= nil
   r.add:SetShown(canAdd)
+  local api = rawget(_G, "EverlookDBAuctionsAPI")
+  r.shop:SetEnabled(api ~= nil and (api.version or 0) >= 2 and #F().shoppingItems(res) > 0)
   r:SetBase(T.surface)
   r:SetSelected(FW.selected == c.id)
 end
