@@ -1,0 +1,26 @@
+## Interface: 16001
+## Title: EverlookDB Crafting
+## Notes: Skill-up routes at today's prices, a live guide, and your materials on every character. /ecraft. Data: everlookdb.com (client data, classic-db GPL-3.0, EG Link CC BY 4.0). Names stay on your PC.
+## Author: quikmn
+## Version: v0.1.0
+## License: GPL-3.0-or-later
+## SavedVariables: EverlookCraftDB
+## SavedVariablesPerCharacter: EverlookCraftChar
+## OptionalDeps: EverlookDBAuctions, Auctionator, TomTom
+## IconTexture: Interface\Icons\Trade_Tailoring
+## X-Embeds: LibStub, EverlookUI
+
+Libs\LibStub\LibStub.lua
+Libs\EverlookUI\EverlookUI.lua
+Core.lua
+Data.lua
+Planner.lua
+Scan.lua
+Stock.lua
+Prices.lua
+Plans.lua
+Map.lua
+Widgets.lua
+Options.lua
+GuideWindow.lua
+API.lua

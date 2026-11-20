@@ -1,0 +1,6 @@
+package-as: EverlookDBCrafting
+
+ignore:
+  - README.md
+  - tests
+  - .github
