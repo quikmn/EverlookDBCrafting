@@ -1,5 +1,5 @@
 # Push a tag like v1.0.0 and this builds EverlookDBCrafting-v1.0.0-forever.zip and a GitHub release, plus a copy named EverlookDBCrafting.zip
-# so https://github.com/quikmn/EverlookDBCrafting/releases/latest/download/EverlookDBCrafting.zip always gets the newest. WowUp uses release.json; CurseForge once its project exists.
+# so https://github.com/quikmn/EverlookDBCrafting/releases/latest/download/EverlookDBCrafting.zip always gets the newest. WowUp uses release.json; the same zip goes to CurseForge.
 name: Release
 
 on:
@@ -31,4 +31,7 @@ jobs:
         run: |
           bash .github/release-notes.sh "$GITHUB_REF_NAME" > .release/notes.md
           gh release edit "$GITHUB_REF_NAME" --notes-file .release/notes.md
-      # CurseForge upload goes here once the project exists (see EverlookDBAuctions' release.yml)
+      - name: Upload to CurseForge (project 1819447, WoW Forever)
+        env:
+          CF_API_KEY: ${{ secrets.CF_API_KEY }}
+        run: bash .github/curseforge-upload.sh 1819447 .release/EverlookDBCrafting-${GITHUB_REF_NAME}-forever.zip EverlookDBCrafting.toc
