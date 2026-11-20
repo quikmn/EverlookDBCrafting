@@ -7,7 +7,7 @@
 ## SavedVariables: EverlookCraftDB
 ## SavedVariablesPerCharacter: EverlookCraftChar
 ## OptionalDeps: EverlookDBAuctions, Auctionator, TomTom
-## IconTexture: Interface\Icons\Trade_Tailoring
+## IconTexture: Interface\AddOns\EverlookDBCrafting\Media\icon
 ## X-Embeds: LibStub, EverlookUI
 
 Libs\LibStub\LibStub.lua
