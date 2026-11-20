@@ -1,5 +1,8 @@
 # EverlookDB Crafting
 
+## Unreleased
+- The addon has its own icon in the addon list (the EverlookDB stack with an anvil).
+
 ## v0.1.0 (2026-11-20)
 - New addon. `/ecraft` (also `/eprof`) opens its window: the Skill-up planner, your characters, prices and the guide's settings, with a search box that finds any setting.
 - Crafting list (`/ecraft list`): plan what to craft, account wide. Each recipe has - and + for its count (Shift: by 5) and a Show button; each craft takes one off. Under it a material tree with what you have in bags, bank and on your other characters ("4 in bags, 6 on Bankalt"), shared out so a stack counts once. Materials one of your characters can make (bolts, bars) break down into their own materials, with a Craft or Buy switch on each (right-click works too); transmute-style loops are cut. Vendor goods have a Map button to the nearest vendor. One button, "Send missing to Auctions", saves the rest as the shopping list "Crafting list" in EverlookDB Auctions (vendor goods stay off it). `/ecraft list add <recipe> [count]` and `/ecraft list clear` work from chat.
