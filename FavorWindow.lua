@@ -101,7 +101,8 @@ local function buildRow(list)
   r.shop = ns.widgets.SmallButton(r, "Shopping list", function()
     if not r.item then return end
     local ok, msg = F().sendToAuctions(r.item)
-    ns.print(ok and msg or ("couldn't make the list: " .. tostring(msg)))
+    if ok == nil then ns.print("loading item names, one moment...")
+    else ns.print(ok and msg or ("couldn't make the list: " .. tostring(msg))) end
   end, 96)
   r.shop:SetPoint("TOPRIGHT", r.map, "BOTTOMRIGHT", 0, -4)
   r.shop:HookScript("OnEnter", function(self)
@@ -217,7 +218,8 @@ end
 function FW.primary()
   local res = FW.pick(FW.rows or ns.favor.current())
   local ok, msg = ns.favor.sendToAuctions(res)
-  ns.print(ok and msg or ("couldn't send the list: " .. tostring(msg)))
+  if ok == nil then ns.print("loading item names, one moment...")
+  else ns.print(ok and msg or ("couldn't send the list: " .. tostring(msg))) end
 end
 
 function FW.render()

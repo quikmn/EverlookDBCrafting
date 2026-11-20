@@ -248,7 +248,7 @@ function F.addToList(res)
 end
 
 -- Send what to buy for a crate to EverlookDB Auctions' shopping list "Merchant's Favor". true, or false and why.
-function F.sendToAuctions(res)
+function F.sendToAuctions(res, retry)
   local api = rawget(_G, "EverlookDBAuctionsAPI")
   if not api or (api.version or 0) < 2 or type(api.addShoppingList) ~= "function" then
     return false, "EverlookDB Auctions (version with shopping lists) isn't installed."
@@ -260,6 +260,18 @@ function F.sendToAuctions(res)
   local ok, done, why = pcall(api.addShoppingList, listName, items)
   if not ok then return false, "EverlookDB Auctions refused the list." end
   if done then return true, ("%d items are on the shopping list \"%s\" in EverlookDB Auctions."):format(#items, listName) end
+  -- the game hasn't loaded every item's name yet (a crate you've never had): ask for them and try again shortly
+  if why == "loading" and (retry or 0) < 5 and C_Timer and C_Timer.After then
+    for _, it in ipairs(items) do
+      if C_Item and C_Item.RequestLoadItemDataByID then pcall(C_Item.RequestLoadItemDataByID, it[1]) end
+    end
+    C_Timer.After(1, function()
+      local ok2, msg = F.sendToAuctions(res, (retry or 0) + 1)
+      if ok2 ~= nil then ns.print(ok2 and msg or ("couldn't make the list: " .. tostring(msg))) end
+    end)
+    return nil, "loading"
+  end
+  if why == "loading" then return false, "the game hasn't loaded some item names yet; try again in a moment." end
   return false, tostring(why or "unknown reason")
 end
 
