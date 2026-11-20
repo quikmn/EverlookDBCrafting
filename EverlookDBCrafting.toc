@@ -12,6 +12,7 @@
 
 Libs\LibStub\LibStub.lua
 Libs\EverlookUI\EverlookUI.lua
+Libs\EverlookUI\EverlookTooltip.lua
 Core.lua
 Data.lua
 Planner.lua
@@ -23,4 +24,8 @@ Map.lua
 Widgets.lua
 Options.lua
 GuideWindow.lua
+Tooltips.lua
+Guild.lua
+Capture.lua
+Merchant.lua
 API.lua

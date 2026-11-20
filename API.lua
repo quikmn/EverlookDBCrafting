@@ -13,11 +13,13 @@
 --   api.stock(item)      { bags, bank, alts }: how many this character has and how many your other characters have
 --                        (the totals only; names are not handed out)
 --   api.knownBy(spell)   how many of your characters know the recipe (a number; names stay in this addon)
+--   api.guildKnows(spell) (v2) { name, ... }: guild members who told this session (guild sharing) that they know the
+--                        recipe, sorted; empty when sharing is off. In memory only: never saved anywhere
 --
 -- Every call reads what is already saved: nothing is sent anywhere, and the tables returned are copies.
 local _, ns = ...
 
-local api = { version = 1 }
+local api = { version = 2 }
 
 function api.recipe(spell)
   local r = type(spell) == "number" and ns.recipeBySpell(spell)
@@ -43,6 +45,13 @@ end
 function api.knownBy(spell)
   if type(spell) ~= "number" or not EverlookCraftDB then return 0 end
   return #ns.scan.knownBy(spell)
+end
+
+function api.guildKnows(spell)
+  if type(spell) ~= "number" or not ns.guild then return {} end
+  local out = {}
+  for i, n in ipairs(ns.guild.knows(spell)) do out[i] = n end
+  return out
 end
 
 -- Read-only: writes to the table are refused, so one addon can't break it for another.

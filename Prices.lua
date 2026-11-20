@@ -13,7 +13,8 @@ local function item(id) return ns.DATA and ns.DATA.items[id] end
 
 -- the vendor price per unit (seen at a merchant beats the data), or nil
 function Pr.vendor(id)
-  local seen = EverlookCraftDB and EverlookCraftDB.seen[id]
+  -- what a merchant on this realm asked (Capture.lua), else an older price saved before prices were kept per realm
+  local seen = ns.capture and ns.capture.price(id) or (EverlookCraftDB and EverlookCraftDB.seen[id])
   if seen then return seen end
   local it = item(id)
   return it and it[4] or nil
@@ -89,19 +90,4 @@ function Pr.estimator()
   end
 end
 
--- A merchant's prices for the materials the data says vendors sell (planned or not: they are few).
-ns.on("MERCHANT_SHOW", function()
-  if not EverlookCraftDB then return end
-  C_Timer.After(0.3, function()
-    local n = plain(try(GetMerchantNumItems)) or 0
-    for i = 1, n do
-      local id = plain(try(GetMerchantItemID, i))
-      local it = id and item(id)
-      if it and it[4] then
-        local _, _, price, qty = try(GetMerchantItemInfo, i)
-        price, qty = plain(price), plain(qty)
-        if price and price > 0 then EverlookCraftDB.seen[id] = price / math.max(1, qty or 1) end
-      end
-    end
-  end)
-end)
+-- A merchant's prices are saved per realm by Capture.lua.
