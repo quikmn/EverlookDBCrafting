@@ -141,6 +141,8 @@ function ns.recipes(skill)
       tier = { a = row[12], h = row[14] }, why = { a = D.why[row[13] + 1], h = D.why[row[15] + 1] },
       skip = D.skips[row[16] + 1], learnKnown = flags:find("k") ~= nil, needsCd = flags:find("c") ~= nil,
       auto = flags:find("a") ~= nil, trained = flags:find("t") ~= nil, skill = skill, icon = row[18] ~= 0 and row[18] or nil,
+      -- the tools it needs (keys of DATA.tools), and AllTheThings' learn skill where `learn` is the site's estimate
+      tools = type(row[19]) == "table" and row[19] or nil, attLearn = (row[20] or 0) ~= 0 and row[20] or nil,
     }
     out[#out + 1] = r
     bySpell[r.spell] = r

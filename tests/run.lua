@@ -198,7 +198,69 @@ step("unpriced materials: never in totals, counted, and the route says it estima
   for _, x in ipairs(res.shop.raw) do if x.id == 10 then eq(x.price, nil, "a guessed price in the list") end end
 end)
 
+step("tools: make or buy the tool before the first step that needs it, unless you have one", function()
+  local tools = { [162] = { "Blacksmith Hammer", { 500 } }, [373] = { "Runed Copper Rod", { 501 } } }
+  local fx = {
+    R({ spell = 21, name = "Hammered Bar", creates = 120, learn = 1, yellow = 40, green = 50, gray = 60, mats = { { 10, 1 } }, tools = { 162 } }),
+    R({ spell = 22, name = "Rodded Bar", creates = 121, learn = 30, yellow = 70, green = 85, gray = 100, mats = { { 10, 1 } }, tools = { 373 } }),
+    -- the rod: never a cheap skill-up (one point, dear), so the route does not make it on its own
+    R({ spell = 23, name = "Runed Copper Rod", creates = 501, learn = 1, yellow = 1, green = 1, gray = 2, mats = { { 12, 1 } } }),
+  }
+  local pr = { [10] = 100, [12] = 5000, [500] = 1800 }
+  local function plan(o)
+    local base = { from = 1, to = 90, side = "a", known = {}, oneTime = false, tools = tools, price = function(id) return pr[id] end }
+    for k, v in pairs(o or {}) do base[k] = v end
+    return P.plan(fx, base)
+  end
+  local res = plan()
+  eq(#res.tools, 2, "two tools")
+  eq(res.tools[1].kind, "buy", "the hammer: no recipe makes it")
+  eq(res.tools[1].item, 500, "hammer item")
+  eq(res.tools[1].at, 1, "before the first step")
+  eq(res.tools[2].kind, "make", "the rod: a recipe makes it")
+  eq(res.tools[2].r.spell, 23, "the rod's recipe")
+  local shop = {}
+  for _, x in ipairs(res.shop.raw) do shop[x.id] = x.n end
+  eq(shop[500], 1, "the hammer on the shopping list")
+  eq(shop[12], 1, "the rod's material on the shopping list")
+  check(res.totals.mats >= 1800 + 5000, "tools in the material total")
+  local have = plan({ hasItem = function(id) return id == 500 or id == 501 end })
+  eq(#have.tools, 0, "you have both")
+  local none = P.plan(fx, { from = 1, to = 90, side = "a", known = {}, oneTime = false, price = function(id) return pr[id] end })
+  eq(#none.tools, 0, "no tool data, no tool steps")
+  eq(#none.steps, #res.steps, "tools never change the route")
+end)
+
 -- real data
+step("real data: tools, rank fees and learn sources", function()
+  local D = ns.DATA
+  local hammer = D.tools[162]
+  check(hammer and hammer[1] == "Blacksmith Hammer", "the Blacksmith Hammer tool")
+  eq(hammer[2][1], 5956, "the plain hammer first")
+  check(D.items[5956] and D.items[5956][4], "the hammer has a vendor price")
+  check(#D.items[5956][7] > 0, "the hammer has vendors")
+  local bs, needing = ns.recipes(164), 0
+  for _, r in ipairs(bs) do if r.tools then needing = needing + 1 end end
+  check(needing > 100, "Blacksmithing recipes that need the hammer: " .. needing)
+  for _, sk in ipairs({ 129, 182, 186, 393 }) do
+    check(D.ranks[sk][1][4] and D.ranks[sk][2][4], sk .. ": Apprentice and Journeyman fees")
+  end
+  -- a Merchant's Favor pattern with its vendor, and a pattern only AllTheThings names a dropper for
+  local fav, attDrop = false, false
+  for _, ri in pairs(D.recipeItems) do
+    local s = ri.sold
+    if s then for i = 1, #s, 6 do if D.currencies[s[i + 1]] == "Merchant's Favor" and s[i + 2] > 0 and D.npcs[s[i]] then fav = true end end end
+    local d = ri.drop
+    if d then for i = 1, #d, 3 do if d[i + 1] == -1 and D.sources[d[i + 2]] == "AllTheThings" then attDrop = true end end end
+  end
+  check(fav, "no Merchant's Favor pattern with a placed vendor")
+  check(attDrop, "no AllTheThings dropper")
+  local blacksmith = P.plan(bs, { from = 1, to = 75, side = "a", known = {}, oneTime = false, tools = D.tools,
+    price = function(id) local it = D.items[id]; return it and (it[4] or it[5] * 100) or nil end })
+  check(blacksmith.tools[1] and blacksmith.tools[1].key == 162, "Blacksmithing 1-75 starts with the hammer")
+  eq(blacksmith.tools[1].kind, "buy", "the hammer is bought")
+end)
+
 local tailoring
 step("Tailoring 1-300 with set prices gives a fixed route through the real data", function()
   tailoring = ns.recipes(197)

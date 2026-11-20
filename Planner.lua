@@ -260,6 +260,53 @@ function P.trainings(ranks, from, to, maxSkill)
   return out
 end
 
+-- The tools a route needs (a blacksmith hammer, a runed rod: DATA.tools, key -> { name, { items that count } }).
+-- For each, before the first step that needs it: nothing when you have one (o.hasItem) or an earlier step makes one;
+-- else make one, with the cheapest recipe of this profession you can learn by then (its own tools first), or buy the
+-- cheapest one that has a price (o.price), or, with neither, a "get" step naming the tool. cost(id) prices materials.
+function P.toolSteps(steps, recipes, o, cost)
+  local out = {}
+  if not o.tools then return out end
+  local matsOf = o.matsOf or function(r) return r.mats end
+  local handled, made = {}, {}
+  local function need(key, at, guard)
+    if handled[key] or guard > 4 then return end
+    handled[key] = true
+    local tool = o.tools[key]
+    if not tool then return end
+    local isItem = {}
+    for _, id in ipairs(tool[2]) do
+      if made[id] or (o.hasItem and o.hasItem(id)) then return end
+      isItem[id] = true
+    end
+    local best, bestCost
+    for _, r in ipairs(recipes) do
+      if r.creates and isItem[r.creates] and r.learn <= at and (r.skip == nil or r.skip == "") and learnable(r, o) then
+        local c = 0
+        for _, m in ipairs(matsOf(r)) do c = c + cost(m[1]).e * m[2] end
+        if not bestCost or c < bestCost then best, bestCost = r, c end
+      end
+    end
+    local t = { key = key, name = tool[1], at = at }
+    if best then
+      for _, k in ipairs(best.tools or {}) do need(k, at, guard + 1) end
+      t.kind, t.r, t.item = "make", best, best.creates
+    else
+      for _, id in ipairs(tool[2]) do
+        local pr = o.price and o.price(id)
+        if pr and (not t.price or pr < t.price) then t.kind, t.item, t.price = "buy", id, pr end
+      end
+      if not t.kind then t.kind, t.item = "get", tool[2][1] end
+    end
+    out[#out + 1] = t
+  end
+  for _, st in ipairs(steps) do
+    for _, key in ipairs(st.r.tools or {}) do need(key, st.from, 0) end
+    if st.r.creates and st.r.creates ~= 0 then made[st.r.creates] = true end
+  end
+  return out
+end
+
 --[[ The plan.
 o = {
   from, to             skill now and the target (to <= 300)
@@ -275,8 +322,10 @@ o = {
   oneTime              false: ignore pattern and fee costs (the site's route, for the parity tests)
   matsOf(r)            the reagents of a recipe (the server's, where a profession window showed others)
   ranks, maxSkill      for the rank trainings (P.trainings)
+  tools, hasItem(id)   DATA.tools and whether you have an item, for the tool steps (P.toolSteps)
 }
-returns { steps, stall, trainings, shop = { raw = { { id, n, price } }, crafted = { { id, n, crafts, via } } },
+returns { steps, stall, trainings, tools = { { key, name, at, kind = make|buy|get, r, item, price } },
+  shop = { raw = { { id, n, price } }, crafted = { { id, n, crafts, via } } },
   totals = { mats, matsUnpriced, patterns, patternsUnknown, fees, feesUnknown, total }, estimated }
 ]]
 function P.plan(recipes, o)
@@ -328,6 +377,20 @@ function P.plan(recipes, o)
     if any then res = best(makeBase(free)) end
   end
   local raw, crafted = P.shopping(res, matsOf, count)
+  -- the tools: one craft's materials, or the tool itself, join the shopping list
+  local tools = P.toolSteps(res.steps, recipes, o, res.cost)
+  local function add(id, n)
+    for _, x in ipairs(raw) do if x.id == id then x.n = x.n + n return end end
+    raw[#raw + 1] = { id = id, n = n }
+  end
+  for _, tl in ipairs(tools) do
+    if tl.kind == "make" then
+      for _, m in ipairs(matsOf(tl.r)) do add(m[1], m[2]) end
+    elseif tl.kind == "buy" then
+      add(tl.item, 1)
+    end
+  end
+  table.sort(raw, function(x, y) return x.id < y.id end)
   local t = { mats = 0, matsUnpriced = 0, patterns = 0, patternsUnknown = 0, fees = 0, feesUnknown = 0 }
   local estimated = false
   for _, x in ipairs(raw) do
@@ -362,7 +425,7 @@ function P.plan(recipes, o)
     if tr.fee then t.fees = t.fees + tr.fee else t.feesUnknown = t.feesUnknown + 1 end
   end
   t.total = t.mats + t.patterns + t.fees
-  return { steps = res.steps, stall = res.stall, trainings = trainings, shop = { raw = raw, crafted = crafted },
+  return { steps = res.steps, stall = res.stall, trainings = trainings, tools = tools, shop = { raw = raw, crafted = crafted },
     totals = t, estimated = estimated, from = o.from, to = o.to }
 end
 

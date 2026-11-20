@@ -61,6 +61,7 @@ function Pl.calculate(skill, to, from)
     vendorPatterns = s.vendorPatterns, ahPatterns = s.ahPatterns,
     owned = ns.stock.owned(), buffer = s.buffer, matsOf = ns.matsOf,
     ranks = ranks, maxSkill = max,
+    tools = ns.DATA.tools, hasItem = function(id) return (ns.stock.usable(id) or 0) > 0 end,
   })
   local out = {
     skill = skill, from = from, to = to, key = keyOf(s), at = time(), side = ns.side(), stall = res.stall,
@@ -77,6 +78,12 @@ function Pl.calculate(skill, to, from)
     end
   end
   out.resale = resaleAny and resale or nil
+  -- the tools to make or buy first: { key, name, at (the skill of the first step that needs it), kind, spell, item, price }
+  out.tools = {}
+  for _, tl in ipairs(res.tools or {}) do
+    out.tools[#out.tools + 1] = { key = tl.key, name = tl.name, at = tl.at, kind = tl.kind, spell = tl.r and tl.r.spell or nil,
+      item = tl.item, price = tl.price }
+  end
   for _, x in ipairs(res.shop.raw) do out.raw[#out.raw + 1] = { id = x.id, n = x.n, price = x.price } end
   for _, x in ipairs(res.shop.crafted) do out.crafted[#out.crafted + 1] = { id = x.id, n = x.n, crafts = x.crafts, spell = x.via.spell } end
   EverlookCraftChar.routes[skill] = out

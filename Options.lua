@@ -119,9 +119,11 @@ local function routeRows(route)
   if not route then return rows end
   local trs = {}
   for _, tr in ipairs(route.trainings or {}) do trs[#trs + 1] = tr end
-  local ti = 1
+  local ti, ki, tls = 1, 1, route.tools or {}
   for _, st in ipairs(route.steps) do
     while trs[ti] and trs[ti].cap <= st.from do rows[#rows + 1] = { kind = "train", tr = trs[ti] }; ti = ti + 1 end
+    -- a tool to make or buy before the first step that needs it
+    while tls[ki] and tls[ki].at <= st.from do rows[#rows + 1] = { kind = "tool", tl = tls[ki] }; ki = ki + 1 end
     rows[#rows + 1] = { kind = "step", st = st }
   end
   while trs[ti] do rows[#rows + 1] = { kind = "train", tr = trs[ti] }; ti = ti + 1 end
@@ -135,6 +137,10 @@ function O.rowTitle(row, skill)
     return ("Train %s"):format(ns.DATA.rankNames[row.tr.step] or "the next rank")
   elseif row.kind == "stall" then
     return ("The route stops at %d"):format(row.at)
+  elseif row.kind == "tool" then
+    local tl = row.tl
+    local verb = tl.kind == "make" and "Make" or tl.kind == "buy" and "Buy" or "Get"
+    return ("%s %s"):format(verb, tl.item and (ns.itemInfo(tl.item)) or tl.name or "a tool")
   end
   local r = ns.plans.recipe(skill, row.st.spell)
   return r and r.name or ("spell " .. row.st.spell)
@@ -150,6 +156,18 @@ function O.rowDetail(row, skill)
     return table.concat(parts, "  \194\183  ")
   elseif row.kind == "stall" then
     return "Nothing you can learn reliably for your side raises it further. Turn on more pattern sources, or see the site's guide."
+  elseif row.kind == "tool" then
+    local tl = row.tl
+    local parts = { ("a tool (%s) the steps from %d need"):format(tl.name or "?", tl.at) }
+    if tl.kind == "make" then
+      local r = tl.spell and ns.recipeBySpell(tl.spell)
+      parts[#parts + 1] = "craft one: " .. (r and r.name or "its recipe")
+    elseif tl.kind == "buy" then
+      parts[#parts + 1] = ns.money(tl.price)
+    else
+      parts[#parts + 1] = "no vendor or recipe for it in the data"
+    end
+    return table.concat(parts, "  \194\183  ")
   end
   local st = row.st
   local r = ns.plans.recipe(skill, st.spell)
@@ -157,8 +175,13 @@ function O.rowDetail(row, skill)
   local crafts = st.n90 > st.n and ("%d crafts (%d at 90%%)"):format(st.n, st.n90) or ("%d crafts"):format(st.n)
   local each = (st.est and "\226\137\136 " or "") .. ns.money(st.each) .. " each"
   if st.est then each = "\226\137\136 price unknown" end
-  return ("%s%d\226\128\147%d|r  \194\183  %s  \194\183  %s  \194\183  %s"):format(col, st.from, st.to, crafts, each,
-    r and learnText(r, st) or "")
+  local tools = ""
+  for _, key in ipairs(r and r.tools or {}) do
+    local tool = ns.DATA.tools and ns.DATA.tools[key]
+    if tool then tools = tools .. "  \194\183  needs " .. tool[1] end
+  end
+  return ("%s%d\226\128\147%d|r  \194\183  %s  \194\183  %s  \194\183  %s%s"):format(col, st.from, st.to, crafts, each,
+    r and learnText(r, st) or "", tools)
 end
 
 -- the NPCs a row's Map button looks among
@@ -168,6 +191,10 @@ function O.rowNpcs(row, skill)
     if not rk then return nil end
     if #rk[5] > 0 then return rk[5] end
     if #rk[7] > 0 then return rk[7] end
+    return nil
+  elseif row.kind == "tool" then
+    local it = row.tl.kind == "buy" and ns.DATA.items[row.tl.item]
+    if it and it[7] and #it[7] > 0 then return it[7] end
     return nil
   elseif row.kind == "step" and not row.st.known then
     local r = ns.plans.recipe(skill, row.st.spell)
@@ -191,6 +218,14 @@ function O.rowTooltip(row, skill)
     local name = ns.itemInfo(m[1])
     local have = ns.stock.usable(m[1])
     lines[#lines + 1] = ("%d x %s  (you have %d)"):format(m[2], name, have)
+  end
+  for _, key in ipairs(r.tools or {}) do
+    local tool = ns.DATA.tools and ns.DATA.tools[key]
+    if tool then
+      local have = false
+      for _, id in ipairs(tool[2]) do if (ns.stock.usable(id) or 0) > 0 then have = true end end
+      lines[#lines + 1] = ("Needs a tool: %s  (%s)"):format(tool[1], have and "you have one" or "you have none")
+    end
   end
   return lines
 end
@@ -298,6 +333,7 @@ app:Section("planner", "Skill-up planner", function(stack)
     rowHeight = 40, max = 80, icon = function(row)
       if row.kind == "train" then return ns.profIcon(O.selected()) end
       if row.kind == "stall" then return "Interface\Icons\INV_Misc_QuestionMark" end
+      if row.kind == "tool" then return (select(2, ns.itemInfo(row.tl.item or 0))) end
       return ns.recipeIcon(ns.plans.recipe(O.selected(), row.st.spell))
     end,
     empty = "The steps show here once you press Calculate.",
@@ -307,6 +343,7 @@ app:Section("planner", "Skill-up planner", function(stack)
     color = function(row)
       if row.kind == "train" then return T.gold end
       if row.kind == "stall" then return T.danger end
+      if row.kind == "tool" then return T.gold end
       if row.st.known then return T.text end
       return nil
     end,
@@ -432,7 +469,7 @@ app:Section("about", "About", function(stack)
   UI.Header(stack, "About", "Data from everlookdb.com, the same rules as the site's professions guide.")
   UI.Note(stack, "Every step must reliably give its skill-ups: a recipe you know, or one you can learn now for your faction (a trainer, a teacher outside a dungeon, a vendor pattern). Dungeon, drop, quest, reputation and unknown recipes are never in the route. A learn skill marked ~ is an estimate.")
   UI.Header(stack, "Sources")
-  UI.Note(stack, "Recipes, skill colours and materials: the WoW Forever client data. Trainers, vendors, rank fees and spawns: classic-db (CMaNGOS, GPL-3.0). What WoW Forever's vendors charge, server learn ranks and where its NPCs stand: Efficient Games' EG Link (CC BY 4.0), changed by EverlookDB. Prices: EverlookDB Auctions or Auctionator, on your PC.")
+  UI.Note(stack, "Recipes, skill colours and materials: the WoW Forever client data. Trainers, vendors, rank fees and spawns: classic-db (CMaNGOS, GPL-3.0). What WoW Forever's vendors and trainers charge, server learn ranks and where its NPCs stand: Efficient Games' EG Link (CC BY 4.0), changed by EverlookDB. Forever's recipe drops, Merchant's Favor vendors and learn skills nothing else has: AllTheThings (MIT), changed by EverlookDB. Tools per recipe: the client data. Prices: EverlookDB Auctions or Auctionator, on your PC.")
   UI.Stat(stack, "Data build", function() return ns.DATA and ns.DATA.build or "?" end)
   UI.Header(stack, "Chat commands")
   UI.Note(stack, "/ecraft  this window (also /eprof)\n/ecraft plan [profession]  the planner\n/ecraft guide  the guide window\n/ecraft status  what the addon knows\n/ecraft search <words>  find a setting\n/ecraft help  all of this in chat")
