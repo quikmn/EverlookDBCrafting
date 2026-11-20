@@ -292,6 +292,7 @@ end
 -- one contribution: a recipe item gets the recipe lines only (it is not also "crafted" or a material)
 function TT.lines(t, id)
   if not id or not ns.DATA then return end
+  if ns.favor and ns.favor.crate(id) then return ns.favor.tipLines(t, id) end
   local idx = TT.index()
   if idx.teaches[id] then return TT.recipeLines(t, id) end
   TT.craftedLines(t, id)
@@ -343,6 +344,9 @@ bool("tip.crafted", "tipCrafted", "Crafted items: who of you can make it",
 bool("tip.recipe", "tipRecipe", "Recipes: known by and learnable by",
   "On a recipe, pattern, plans or formula: which of your characters on this realm know it, can learn it now, or later.",
   { "tooltip", "recipe", "pattern", "plans", "formula", "learn", "known", "alts", "twinks" })
+bool("tip.favor", "tipFavor", "Waylaid Crates: Merchant's Favor and gold per Favor",
+  "On a Waylaid Crate: the Merchant's Favor it gives and what one Favor costs you with its cheapest bundle at today's prices.",
+  { "tooltip", "crate", "waylaid", "favor", "merchant's favor" })
 bool("tip.guild", "tipGuild", "Guild members in these lines",
   "Guild members who know the recipe (needs guild sharing, see Guild).", { "tooltip", "guild", "crafter" })
 app:Setting({
@@ -360,6 +364,7 @@ app:Section("tooltips", "Tooltips", function(stack)
   app:Widget(stack, "tip.reagent")
   app:Widget(stack, "tip.crafted")
   app:Widget(stack, "tip.recipe")
+  app:Widget(stack, "tip.favor")
   app:Widget(stack, "tip.guild")
   app:Widget(stack, "tipdetail")
   UI.Note(stack, "Your characters' names come from this addon's own saved variables on this PC; guild members' names are only kept in memory until you log out.")

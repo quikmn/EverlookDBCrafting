@@ -46,7 +46,7 @@ def main() -> int:
         runner = lua.execute("return function(...) local f = assert(loadstring(...)); return f end")(f.read())
     failures = runner(ROOT, table)
     # the game integrations (tooltips, guild, trainer and merchant capture, buying), each in a fresh Lua state
-    for name in ("integrations", "craftlist"):
+    for name in ("integrations", "craftlist", "favor"):
         print(f"-- tests/{name}.lua")
         lua = lua51.LuaRuntime(unpack_returned_tuples=True)
         with open(f"{ROOT}/tests/wowmock.lua", encoding="utf-8") as f:

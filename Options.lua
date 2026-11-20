@@ -75,6 +75,7 @@ app:Setting({ key = "windows.scale", type = "number", label = "Crafting list and
   after = function()
     if ns.listWindow then ns.listWindow.applyScale() end
     if ns.browserWindow then ns.browserWindow.applyScale() end
+    if ns.favorWindow then ns.favorWindow.applyScale() end
   end })
 setting("browser.otherside", "otherSide", "Show the other faction's recipes",
   "The recipe browser also lists recipes only the other faction can learn.", { "faction", "horde", "alliance", "other side" },
@@ -436,6 +437,25 @@ app:Section("list", "Crafting list", function(stack)
   UI.Note(stack, "Each craft of a listed recipe takes one off its count. Materials you can make break down into their own materials when one of your characters knows the recipe; right-click one in the list to buy it instead. Vendor goods have a Map button to the nearest vendor and stay off the shopping list. \"Send missing to Auctions\" saves the rest as the shopping list \"Crafting list\" in EverlookDB Auctions.")
 end, { icon = "list", desc = "Plan what to craft: every material, what you have in bags, bank and on your other characters, craft or buy, and what is missing." })
 
+setting("favor.bags", "favorBagsFree", "Merchant's Favor: count my bags as free",
+  "Crates and materials you have on your characters cost nothing in the Merchant's Favor ranking. Off: they count at their auction price.",
+  { "favor", "crate", "waylaid", "bags", "free", "owned" })
+
+app:Section("favor", "Merchant's Favor", function(stack)
+  UI.Header(stack, "Waylaid Crates")
+  UI.ButtonRow(stack, {
+    { label = "Open Merchant's Favor", width = 190, style = "accent", onClick = function() ns.favorWindow.open() end,
+      desc = "Its own window: it stays open when this one closes.", keywords = { "favor", "crate", "waylaid", "trade logistics", "reputation" } },
+  })
+  UI.Stat(stack, "Cheapest crate", function()
+    local best = ns.favor.current()[1]
+    if not best or not best.perFavor then return "|cff8d94a3no prices yet|r" end
+    return ("%s, %s"):format((ns.itemInfo(best.c.id):gsub("^Waylaid Crate: ", "")), ns.favor.perFavorText(best))
+  end)
+  app:Widget(stack, "favor.bags")
+  UI.Note(stack, "A Waylaid Crate lists several bundles; fill it with ONE and hand the Sealed Crate to Marcy Baker (Three Corners, Redridge) or Dokimi (west of the Crossroads) for Merchant's Favor. Its cost here is the crate on the auction house plus the cheapest bundle, each item bought or crafted (a recipe one of your characters knows), whichever is cheaper. Crate turn-ins give no Trade Logistics reputation (EG Link saw none); Performance Bonus doubles the Favor 5-15% of the time and isn't counted. Favor per crate: AllTheThings; Artisan crates' Favor isn't known yet.")
+end, { icon = "coins", desc = "Which Waylaid Crate gives the most Merchant's Favor for the least gold, at today's prices." })
+
 ---------------------------------------------------------------------------------------------------------------------
 -- Characters and stock
 
@@ -531,7 +551,7 @@ app:Section("about", "About", function(stack)
   UI.Note(stack, "Recipes, skill colours and materials: the WoW Forever client data. Trainers, vendors, rank fees and spawns: classic-db (CMaNGOS, GPL-3.0). What WoW Forever's vendors and trainers charge, server learn ranks and where its NPCs stand: Efficient Games' EG Link (CC BY 4.0), changed by EverlookDB. Forever's recipe drops, Merchant's Favor vendors and learn skills nothing else has: AllTheThings (MIT), changed by EverlookDB. Tools per recipe: the client data. Prices: EverlookDB Auctions or Auctionator, on your PC.")
   UI.Stat(stack, "Data build", function() return ns.DATA and ns.DATA.build or "?" end)
   UI.Header(stack, "Chat commands")
-  UI.Note(stack, "/ecraft  this window (also /eprof)\n/ecraft plan [profession]  the planner\n/ecraft guide  the guide window\n/ecraft recipes [words]  the recipe browser, searching for words\n/ecraft list  the Crafting list\n/ecraft list add <recipe> [count]  put a recipe on it\n/ecraft list clear  empty it\n/ecraft status  what the addon knows\n/ecraft search <words>  find a setting\n/ecraft help  all of this in chat")
+  UI.Note(stack, "/ecraft  this window (also /eprof)\n/ecraft plan [profession]  the planner\n/ecraft guide  the guide window\n/ecraft recipes [words]  the recipe browser, searching for words\n/ecraft list  the Crafting list\n/ecraft list add <recipe> [count]  put a recipe on it\n/ecraft list clear  empty it\n/ecraft favor  Waylaid Crates ranked by gold per Merchant's Favor\n/ecraft status  what the addon knows\n/ecraft search <words>  find a setting\n/ecraft help  all of this in chat")
 end, { icon = "info" })
 
 ---------------------------------------------------------------------------------------------------------------------
@@ -582,6 +602,10 @@ app:Command("list", "list [add <recipe> [count] | clear]", "the Crafting list", 
     ns.listWindow.toggle()
   end
 end, { "craft", "craftlist" })
+
+app:Command("favor", "favor", "Merchant's Favor: Waylaid Crates ranked by gold per Favor", function()
+  ns.favorWindow.toggle()
+end, { "crates", "crate", "waylaid" })
 
 app:StatusLines(function()
   local chars, profs = 0, 0

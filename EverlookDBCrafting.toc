@@ -22,11 +22,13 @@ Prices.lua
 Plans.lua
 Map.lua
 CraftList.lua
+Favor.lua
 Browser.lua
 Widgets.lua
 Options.lua
 GuideWindow.lua
 CraftListWindow.lua
+FavorWindow.lua
 BrowserWindow.lua
 Tooltips.lua
 Guild.lua
