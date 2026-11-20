@@ -9,6 +9,8 @@ local ADDON, ns = ...
 
 ns.NAME = "EverlookDB Crafting"
 ns.SLASH = "/ecraft"
+-- the house accent: the blue line along each window's top, icons, the one filled button per screen
+ns.ACCENT = { 0.353, 0.663, 1 }
 
 local function pick(ok, ...)
   if ok then return ... end
@@ -39,8 +41,13 @@ ns.DEFAULTS = {
     guideLocked = false,
     guideRows = 18,
     autoGuide = false,       -- open the guide with the profession window, when that profession has a route
+    windowScale = 1,         -- the Crafting list and the recipe browser
+    otherSide = false,       -- the recipe browser lists the other faction's recipes too
   },
   chars = {},
+  list = {},                 -- the Crafting list: { { spell, n (crafts) } }
+  craftBuy = {},             -- per material you can make: "craft" or "buy" (unset: craft, buy for vendor goods)
+  favs = {},                 -- recipe browser favourites: spell -> true
   fixes = {},
   seen = {},
 }

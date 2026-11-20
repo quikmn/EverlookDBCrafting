@@ -21,9 +21,13 @@ Stock.lua
 Prices.lua
 Plans.lua
 Map.lua
+CraftList.lua
+Browser.lua
 Widgets.lua
 Options.lua
 GuideWindow.lua
+CraftListWindow.lua
+BrowserWindow.lua
 Tooltips.lua
 Guild.lua
 Capture.lua

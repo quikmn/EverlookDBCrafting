@@ -264,7 +264,7 @@ end
 
 local function makeFrame()
   if G.frame then return G.frame end
-  T = UI.MakeTheme({ 1, 0.82, 0 })
+  T = UI.MakeTheme(ns.ACCENT)
   local f = CreateFrame("Frame", "EverlookCraftGuide", UIParent)
   f.eluiTheme = T
   f:SetWidth(W)

@@ -13,7 +13,8 @@ local app = UI:NewApp({
   slash = ns.SLASH,
   aliases = { "/eprof" },
   tagline = "Skill-up routes at today's prices, a live guide, and your materials on every character.",
-  accent = { 1, 0.82, 0 },
+  accent = ns.ACCENT,
+  searchTop = true,
   width = 760,
   height = 600,
   position = function() return EverlookCraftDB end,
@@ -66,6 +67,18 @@ setting("guide.lock", "guideLocked", "Lock the guide in place", "The guide windo
   { "lock", "move", "drag" })
 setting("guide.auto", "autoGuide", "Open the guide with the profession window",
   "When you open a profession that has a route, its guide opens too.", { "automatic", "open", "show" })
+
+app:Setting({ key = "windows.scale", type = "number", label = "Crafting list and recipe browser size", min = 0.6, max = 1.6,
+  step = 0.05, fmt = "%.2f", desc = "How big the Crafting list and the recipe browser windows are.",
+  keywords = { "scale", "zoom", "size", "list", "browser", "recipes" }, default = 1,
+  get = function() return S().windowScale end, set = function(v) S().windowScale = v end,
+  after = function()
+    if ns.listWindow then ns.listWindow.applyScale() end
+    if ns.browserWindow then ns.browserWindow.applyScale() end
+  end })
+setting("browser.otherside", "otherSide", "Show the other faction's recipes",
+  "The recipe browser also lists recipes only the other faction can learn.", { "faction", "horde", "alliance", "other side" },
+  function() if ns.browserWindow then ns.browserWindow.render() end end)
 
 app:Movable({ what = "the guide window", get = function() return S().guideLocked end,
   set = function(locked) S().guideLocked = locked and true or false end })
@@ -379,6 +392,51 @@ app:Section("planner", "Skill-up planner", function(stack)
 end, { icon = "hammer", desc = "The cheapest reliable route to your target, at today's prices." })
 
 ---------------------------------------------------------------------------------------------------------------------
+-- Recipes and the Crafting list (their own windows; these pages open them and hold their settings)
+
+app:Section("recipes", "Recipes", function(stack)
+  UI.Header(stack, "Recipe browser")
+  UI.ButtonRow(stack, {
+    { label = "Open recipe browser", width = 180, style = "accent", onClick = function() ns.browserWindow.open() end,
+      desc = "Its own window: it stays open when this one closes.", keywords = { "browser", "recipes", "all recipes", "search" } },
+  })
+  UI.Stat(stack, "In the data", function()
+    local n, unknown = 0, 0
+    local side = ns.side()
+    for _, p in ipairs(ns.professionList()) do
+      for _, r in ipairs(ns.recipes(p.id) or {}) do
+        n = n + 1
+        if r.why[side] == "unknown" then unknown = unknown + 1 end
+      end
+    end
+    return ("%d recipes, %d with no known source yet"):format(n, unknown)
+  end)
+  app:Widget(stack, "browser.otherside")
+  app:Widget(stack, "windows.scale")
+  UI.Note(stack, "\"Source unknown\" means no trainer, vendor, drop or quest for the recipe is in EverlookDB's data yet: the addon never guesses one. A learn skill marked ~ is an estimate.")
+end, { icon = "book", desc = "Every recipe of a profession, learned or not: search by name or reagent, where each reagent comes from, how to learn it, and which of your characters know it." })
+
+app:Section("list", "Crafting list", function(stack)
+  UI.Header(stack, "Crafting list")
+  UI.ButtonRow(stack, {
+    { label = "Open crafting list", width = 180, style = "accent", onClick = function() ns.listWindow.open() end,
+      desc = "Its own window: it stays open when this one closes.", keywords = { "plan", "craft list", "shopping", "materials" } },
+  })
+  UI.Stat(stack, "On your list", function()
+    local tree = ns.craftList.tree()
+    if #tree.roots == 0 then return "|cff8d94a3nothing yet|r" end
+    return ("%d recipe%s, %d material%s to buy"):format(#tree.roots, #tree.roots == 1 and "" or "s", #tree.missing, #tree.missing == 1 and "" or "s")
+  end)
+  UI.Stat(stack, "Shopping list", function()
+    local api = rawget(_G, "EverlookDBAuctionsAPI")
+    if api and (api.version or 0) >= 2 then return "|cff62cf88EverlookDB Auctions found|r" end
+    if api then return "|cffffd100update EverlookDB Auctions for shopping lists|r" end
+    return "|cff8d94a3EverlookDB Auctions not installed|r"
+  end)
+  UI.Note(stack, "Each craft of a listed recipe takes one off its count. Materials you can make break down into their own materials when one of your characters knows the recipe; right-click one in the list to buy it instead. Vendor goods have a Map button to the nearest vendor and stay off the shopping list. \"Send missing to Auctions\" saves the rest as the shopping list \"Crafting list\" in EverlookDB Auctions.")
+end, { icon = "list", desc = "Plan what to craft: every material, what you have in bags, bank and on your other characters, craft or buy, and what is missing." })
+
+---------------------------------------------------------------------------------------------------------------------
 -- Characters and stock
 
 local function ago(t)
@@ -407,6 +465,7 @@ app:Section("characters", "Characters", function(stack)
   UI.List(stack, {
     rowHeight = 40,
     empty = "No characters yet. Log in and open your bags.",
+    icon = function() return "user" end,
     items = charRows,
     title = function(e)
       local c = e.c
@@ -456,11 +515,11 @@ app:Section("guide", "Guide window", function(stack)
   app:Widget(stack, "guide.lock")
   app:Widget(stack, "guide.auto")
   UI.ButtonRow(stack, {
-    { label = "Open guide", width = 140, onClick = function() if ns.guide then ns.guide.open() end end,
+    { label = "Open guide", width = 140, style = "accent", onClick = function() if ns.guide then ns.guide.open() end end,
       desc = "Opens the guide of your last route.", keywords = { "show", "checklist" } },
   })
   UI.Note(stack, "Right-click a step in the guide to mark it done (or not). The guide selects the step's recipe in your profession window; crafting stays with the game's Create button.")
-end, { icon = "list" })
+end, { icon = "check" })
 
 ---------------------------------------------------------------------------------------------------------------------
 -- About
@@ -472,7 +531,7 @@ app:Section("about", "About", function(stack)
   UI.Note(stack, "Recipes, skill colours and materials: the WoW Forever client data. Trainers, vendors, rank fees and spawns: classic-db (CMaNGOS, GPL-3.0). What WoW Forever's vendors and trainers charge, server learn ranks and where its NPCs stand: Efficient Games' EG Link (CC BY 4.0), changed by EverlookDB. Forever's recipe drops, Merchant's Favor vendors and learn skills nothing else has: AllTheThings (MIT), changed by EverlookDB. Tools per recipe: the client data. Prices: EverlookDB Auctions or Auctionator, on your PC.")
   UI.Stat(stack, "Data build", function() return ns.DATA and ns.DATA.build or "?" end)
   UI.Header(stack, "Chat commands")
-  UI.Note(stack, "/ecraft  this window (also /eprof)\n/ecraft plan [profession]  the planner\n/ecraft guide  the guide window\n/ecraft status  what the addon knows\n/ecraft search <words>  find a setting\n/ecraft help  all of this in chat")
+  UI.Note(stack, "/ecraft  this window (also /eprof)\n/ecraft plan [profession]  the planner\n/ecraft guide  the guide window\n/ecraft recipes [words]  the recipe browser, searching for words\n/ecraft list  the Crafting list\n/ecraft list add <recipe> [count]  put a recipe on it\n/ecraft list clear  empty it\n/ecraft status  what the addon knows\n/ecraft search <words>  find a setting\n/ecraft help  all of this in chat")
 end, { icon = "info" })
 
 ---------------------------------------------------------------------------------------------------------------------
@@ -493,6 +552,37 @@ app:Command("guide", "guide", "open or close the guide window", function()
   if ns.guide then ns.guide.toggle() end
 end)
 
+app:Command("recipes", "recipes [words]", "the recipe browser, searching for a recipe or reagent", function(rest)
+  rest = U.Trim(rest or "")
+  if rest == "" then ns.browserWindow.toggle() return end
+  -- a profession's name picks it; anything else is a search
+  for _, p in ipairs(ns.professionList()) do
+    if p.name:lower() == rest:lower() then ns.browserWindow.open(p.id, "") return end
+  end
+  ns.browserWindow.open(nil, rest)
+end, { "recipe", "browser", "browse" })
+
+app:Command("list", "list [add <recipe> [count] | clear]", "the Crafting list", function(rest)
+  rest = U.Trim(rest or "")
+  local verb, args = rest:match("^(%S+)%s*(.*)$")
+  verb = verb and verb:lower()
+  if verb == "add" then
+    local name, n = args:match("^(.-)%s+(%d+)$")
+    name = name or args
+    local r = ns.browser.findByName(name)
+    if not r then app:Print(("no recipe called \"%s\"."):format(name)) return end
+    ns.craftList.add(r.spell, tonumber(n) or 1)
+    local e = ns.craftList.find(r.spell)
+    app:Print(("%s: %d on the Crafting list."):format(r.name, e and e.n or 1))
+    ns.listWindow.open()
+  elseif verb == "clear" then
+    ns.craftList.clear()
+    app:Print("the Crafting list is empty.")
+  else
+    ns.listWindow.toggle()
+  end
+end, { "craft", "craftlist" })
+
 app:StatusLines(function()
   local chars, profs = 0, 0
   for _, c in pairs(EverlookCraftDB and EverlookCraftDB.chars or {}) do
@@ -501,6 +591,8 @@ app:StatusLines(function()
   end
   local lines = { ("%d characters, %d professions read. Prices: %s."):format(chars, profs,
     ns.prices.auctionsLoaded() and "EverlookDB Auctions" or ns.prices.auctionatorLoaded() and "Auctionator" or "none (vendor goods only)") }
+  local list = ns.craftList.entries()
+  if #list > 0 then lines[#lines + 1] = ("Crafting list: %d recipes."):format(#list) end
   for skill, r in pairs(EverlookCraftChar and EverlookCraftChar.routes or {}) do
     lines[#lines + 1] = ("Route: %s %d to %d, %d steps."):format(ns.profName(skill), r.from, r.to, #r.steps)
   end
