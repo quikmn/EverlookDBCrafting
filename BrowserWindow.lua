@@ -284,8 +284,8 @@ function BW.renderDetail()
   sub.text:SetTextColor(rgba(T.muted))
   sub.text:SetWordWrap(false)
   local est = r.learnKnown and "" or "~"
-  sub.text:SetText(("%s  \194\183  makes %d  \194\183  |cffff8040%s%d|r  |cffffff00%d|r  |cff40c040%d|r  |cff808080%d|r"):format(
-    ns.profName(r.skill), r.yield or 1, est, r.learn, r.yellow, r.green, r.gray))
+  sub.text:SetText(("%s  \194\183  makes %d  \194\183  |cffff8040%s|r  |cffffff00%d|r  |cff40c040%d|r  |cff808080%d|r"):format(
+    ns.profName(r.skill), r.yield or 1, ns.browser.learnText(r), r.yellow, r.green, r.gray))
   sub:SetFrameLevel(card:GetFrameLevel() + 2)
   local skillNow = ns.plans.skillNow(r.skill)
   local known = ns.browser.knownByMe(r)
@@ -310,6 +310,8 @@ function BW.renderDetail()
   end
   if known then parts[#parts + 1] = ("you know it, %d with your bags now"):format(ns.browser.canMake(r))
   else parts[#parts + 1] = "|cff8d94a3not learned|r" end
+  local tools = ns.browser.toolsText(r)
+  if tools then parts[#parts + 1] = "needs " .. tools end
   status.text:SetText(table.concat(parts, "  \194\183  "))
   status:SetHeight(math.ceil(status.text:GetStringHeight() or 14) + 2)
   status:SetFrameLevel(card:GetFrameLevel() + 2)

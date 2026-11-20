@@ -406,7 +406,7 @@ app:Section("recipes", "Recipes", function(stack)
     for _, p in ipairs(ns.professionList()) do
       for _, r in ipairs(ns.recipes(p.id) or {}) do
         n = n + 1
-        if r.why[side] == "unknown" then unknown = unknown + 1 end
+        if not ns.browser.hasSource(r, side) then unknown = unknown + 1 end
       end
     end
     return ("%d recipes, %d with no known source yet"):format(n, unknown)

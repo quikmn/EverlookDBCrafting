@@ -154,6 +154,34 @@ local function costText(cur, amount)
   return amount and amount > 0 and ("%d x %s"):format(amount, item) or item
 end
 
+-- the learn skill as text: "~30", with AllTheThings' figure where the site only estimates one
+function B.learnText(r)
+  if r.learnKnown then return tostring(r.learn) end
+  if r.attLearn and r.attLearn ~= r.learn then return ("~%d (AllTheThings: %d)"):format(r.learn, r.attLearn) end
+  return "~" .. r.learn
+end
+
+-- the tools a recipe needs, by name ("Blacksmith Hammer"), or nil
+function B.toolsText(r)
+  local names = {}
+  for _, key in ipairs(r.tools or {}) do
+    local t = ns.DATA.tools and ns.DATA.tools[key]
+    if t then names[#names + 1] = t[1] end
+  end
+  return #names > 0 and table.concat(names, ", ") or nil
+end
+
+-- Is any way to learn the recipe in the data? (trainer, automatic, gold vendors, Favor or reputation vendors, drops,
+-- quests, or a reason word). Only when none is there is it "source unknown".
+function B.hasSource(r, side)
+  side = side or ns.side()
+  if r.auto or r.trained then return true end
+  local ri = r.item and r.item ~= 0 and ns.DATA.recipeItems[r.item]
+  if ri and (#ri[2] > 0 or (ri.sold and #ri.sold > 0) or (ri.drop and #ri.drop > 0) or (ri.q and #ri.q > 0)) then return true end
+  local why = r.why[side]
+  return why ~= nil and why ~= "" and why ~= "unknown"
+end
+
 function B.learnLines(r, side)
   side = side or ns.side()
   local lines = {}
@@ -171,13 +199,13 @@ function B.learnLines(r, side)
   local sources = 0
   if r.trained then
     local fee = r.fee and r.fee > 0 and ns.money(r.fee) or (r.fee == 0 and "free" or "fee not in the data")
-    add(("Trainer: %s, from skill %s%d"):format(fee, est, r.learn), { npcs = trainersFor(r.skill, r.learn), icon = "user" })
+    add(("Trainer: %s, from skill %s"):format(fee, B.learnText(r)), { npcs = trainersFor(r.skill, r.learn), icon = "user" })
     sources = sources + 1
   end
   local ri = r.item and r.item ~= 0 and D.recipeItems[r.item]
   if r.item and r.item ~= 0 then
     local name, _, q = ns.itemInfo(r.item)
-    add(("Recipe item: |cff%s%s|r, learn at %s%d"):format(ns.qualityColor(q), name, est, r.learn), { icon = "scroll" })
+    add(("Recipe item: |cff%s%s|r, learn at %s"):format(ns.qualityColor(q), name, B.learnText(r)), { icon = "scroll" })
     if ri then
       -- gold vendors
       local vendors, limited = {}, false
@@ -199,12 +227,14 @@ function B.learnLines(r, side)
       for i = 1, #sold, 6 do
         local npc, cur, amount, fac, standing = sold[i], sold[i + 1], sold[i + 2], sold[i + 3], sold[i + 4]
         local n = D.npcs[npc]
-        if n and ns.map.usable(n[2], side) and shown < 3 then
+        if shown < 3 then
           shown = shown + 1
           local gate = fac and fac ~= 0 and ("; needs %s %s"):format(D.factions and D.factions[fac] or "a faction",
             D.standings and D.standings[standing] or "") or ""
-          add(("Sold by %s for %s%s"):format(npcLabel(npc), costText(cur or 0, amount), gate),
-            { npcs = hasSpot(npc) and { npc } or nil, icon = "coins" })
+          local ok = not n or ns.map.usable(n[2], side)
+          local whose = (n and (n[2] == "a" or n[2] == "h") and not ok) and " (the other faction's vendor)" or ""
+          add(("Sold by %s for %s%s%s"):format(npcLabel(npc), costText(cur or 0, amount), gate, whose),
+            { npcs = ok and hasSpot(npc) and { npc } or nil, icon = "coins", warn = whose ~= "" or nil })
           sources = sources + 1
         end
       end
@@ -213,9 +243,11 @@ function B.learnLines(r, side)
       local nDrop = 0
       for i = 1, #drop, 3 do
         if nDrop >= 3 then break end
-        local npc, chance = drop[i], drop[i + 1]
+        local npc, chance, src = drop[i], drop[i + 1], drop[i + 2]
         nDrop = nDrop + 1
-        add(("Drops from %s%s"):format(npcLabel(npc), chance and chance > 0 and (", %s%%"):format(chance >= 1 and ("%.0f"):format(chance) or ("%.2f"):format(chance)) or ""),
+        local how = chance and chance > 0 and (", %s%%"):format(chance >= 1 and ("%.0f"):format(chance) or ("%.2f"):format(chance))
+          or (", chance unknown" .. (src == 3 and " (AllTheThings)" or ""))
+        add(("Drops from %s%s"):format(npcLabel(npc), how),
           { pin = hasSpot(npc) and npc or nil, icon = "sword" })
         sources = sources + 1
       end
@@ -268,6 +300,7 @@ function B.learnShort(r, side)
         return (sold[i + 3] or 0) ~= 0 and "reputation vendor" or "vendor"
       end
     end
+    if #sold > 0 then return "the other faction's vendor" end
     if ri.drop and #ri.drop > 0 then
       local n = ns.DATA.npcs[ri.drop[1]]
       return (n and n[6] == 1) and "dungeon drop" or "drop"

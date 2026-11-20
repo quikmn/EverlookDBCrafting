@@ -288,6 +288,26 @@ step("where a reagent comes from: crafted by your character, vendors with a Map,
   check(B.gatherText("Peacebloom"):find("Gathered in the world", 1, true), "anything else")
 end)
 
+step("source unknown only when no trainer, vendor, Favor vendor, drop or quest is in the data", function()
+  local n, wrong = 0, 0
+  for _, p in ipairs(ns.professionList()) do
+    for _, r in ipairs(ns.recipes(p.id) or {}) do
+      local ri = r.item ~= 0 and ns.DATA.recipeItems[r.item]
+      if r.why.a == "unknown" and ri and ((ri.sold and #ri.sold > 0) or (ri.drop and #ri.drop > 0)) then
+        n = n + 1
+        if not B.hasSource(r, "a") then wrong = wrong + 1 end
+        local t = text(B.learnLines(r, "a"))
+        check(not t:find("Source unknown", 1, true), r.name .. " has a source: " .. t)
+      end
+    end
+  end
+  eq(wrong, 0, "recipes with sources counted unknown")
+  local r = find(function(x) return x.attLearn and not x.learnKnown and x.attLearn ~= x.learn end)
+  if r then check(B.learnText(r):find("AllTheThings", 1, true), "AllTheThings learn skill not shown") end
+  local hammer = find(function(x) return x.tools ~= nil end)
+  if hammer then check(B.toolsText(hammer), "tool name") end
+end)
+
 step("can make with your bags", function()
   ns.me().bags = { [LINEN] = 5 }
   eq(B.canMake(ns.recipeBySpell(BOLT_SPELL)), 2, "5 linen, 2 per bolt")
