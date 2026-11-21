@@ -345,14 +345,14 @@ bool("tip.recipe", "tipRecipe", "Recipes: known by and learnable by",
   "On a recipe, pattern, plans or formula: which of your characters on this realm know it, can learn it now, or later.",
   { "tooltip", "recipe", "pattern", "plans", "formula", "learn", "known", "alts", "twinks" })
 bool("tip.favor", "tipFavor", "Waylaid Crates: Merchant's Favor and gold per Favor",
-  "On a Waylaid Crate: the Merchant's Favor it gives and what one Favor costs you with its cheapest bundle at today's prices.",
+  "On a Waylaid Crate: the Favor it gives and what one Favor costs with its cheapest bundle.",
   { "tooltip", "crate", "waylaid", "favor", "merchant's favor" })
 bool("tip.guild", "tipGuild", "Guild members in these lines",
   "Guild members who know the recipe (needs guild sharing, see Guild).", { "tooltip", "guild", "crafter" })
 app:Setting({
   key = "tipdetail", type = "choice", label = "Tooltip details", width = 200,
   keywords = { "tooltip", "shift", "detail", "finer" },
-  desc = "Show the finer print (which recipes, each alt's skill) always, or only while you hold Shift. Shared with the other EverlookDB addons' tooltip lines.",
+  desc = "The finer print (which recipes, each alt's skill): always, or only while you hold Shift.",
   choices = { { value = "always", text = "Always" }, { value = "shift", text = "While Shift is held" } },
   get = function() return Tip and Tip:GetDetail() or ns.settings().tipDetail end,
   set = function(v) TT.detail(v) end,
@@ -367,5 +367,5 @@ app:Section("tooltips", "Tooltips", function(stack)
   app:Widget(stack, "tip.favor")
   app:Widget(stack, "tip.guild")
   app:Widget(stack, "tipdetail")
-  UI.Note(stack, "Your characters' names come from this addon's own saved variables on this PC; guild members' names are only kept in memory until you log out.")
-end, { icon = "tooltip" })
+  UI.Note(stack, "Tooltip details is shared by every EverlookDB addon's tooltip lines. Your characters' names come from this addon's own saved variables on this PC; guild members' names are only kept in memory until you log out.")
+end, { icon = "tooltip", desc = "What this addon adds to item tooltips: materials, crafted items, recipes and Waylaid Crates." })
