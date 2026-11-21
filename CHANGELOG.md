@@ -1,6 +1,6 @@
 # EverlookDB Crafting
 
-## Unreleased
+## v0.2.0 (2026-11-21)
 - Your characters on the other faction no longer count as having materials (mail can't go between factions). Each character's faction is saved when you log in on it; one you haven't logged in on since still counts until then.
 - Materials on your characters on other realms no longer count as yours: mail can't cross realms. The planner, the Crafting list ("6 on Bankalt"), Merchant's Favor and the "(4 +5)" count in the profession window now count only characters on your realm (or a connected one), the same as the tooltips.
 - Merchant's Favor: a crate's Shopping list never puts on what you already have (the crate, the bundle, its materials), also with "My bags free" off. A crate with nothing to buy has its Shopping list button greyed out (it looked clickable), and a row with no priced bundle says why once instead of twice.

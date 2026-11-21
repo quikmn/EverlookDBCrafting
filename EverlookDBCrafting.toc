@@ -2,7 +2,7 @@
 ## Title: EverlookDB Crafting
 ## Notes: Skill-up routes at today's prices, a live guide, and your materials on every character. /ecraft. Data: everlookdb.com (client data, classic-db GPL-3.0, EG Link CC BY 4.0). Names stay on your PC.
 ## Author: quikmn
-## Version: v0.1.1
+## Version: v0.2.0
 ## License: GPL-3.0-or-later
 ## SavedVariables: EverlookCraftDB
 ## SavedVariablesPerCharacter: EverlookCraftChar
