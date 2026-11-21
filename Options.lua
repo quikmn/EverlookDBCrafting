@@ -505,7 +505,7 @@ app:Section("characters", "Characters", function(stack)
     buttons = { { label = "Forget", width = 80, confirm = true, shown = function(e) return e.guid ~= ns.guid() end,
       onClick = function(e) EverlookCraftDB.chars[e.guid] = nil; app:Refresh() end } },
   })
-  UI.Note(stack, "Open each character's bank once so its bank counts. Materials on your other characters on this realm (or a connected one) count as owned unless \"Don't count my alts' materials\" is on.")
+  UI.Note(stack, "Open each character's bank once so its bank counts. Materials on your other characters of the same faction on this realm (or a connected one) count as owned unless \"Don't count my alts' materials\" is on.")
 end, { icon = "user" })
 
 ---------------------------------------------------------------------------------------------------------------------

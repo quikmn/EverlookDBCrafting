@@ -65,11 +65,11 @@ local function uses(r, id)
   return false
 end
 
--- your characters (this realm or a connected one, when known), the current one first: { { guid, c, me } }
+-- your characters (this realm or a connected one and your faction, when known), the current one first: { { guid, c, me } }
 function TT.characters(sameRealm)
   local out, me, realms = {}, ns.guid(), ns.mailRealms()
   for g, c in pairs(EverlookCraftDB and EverlookCraftDB.chars or {}) do
-    if not sameRealm or ns.sameRealm(c, realms) then
+    if not sameRealm or ns.canMail(c, realms) then
       out[#out + 1] = { guid = g, c = c, me = g == me }
     end
   end

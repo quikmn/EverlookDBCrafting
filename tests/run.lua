@@ -393,6 +393,31 @@ step("stock: characters on another realm don't count (mail can't cross realms); 
   EverlookCraftDB.chars["Player-2-Far"] = nil
 end)
 
+step("stock: your characters on the other faction don't count (mail can't cross factions)", function()
+  local me = ns.me()
+  eq(me.side, "a", "your faction saved")
+  me.bags, me.bank = { [2589] = 20 }, { [2589] = 5 }
+  EverlookCraftDB.chars["Player-1-Alt"] = { name = "Alt", realm = "Mock Realm", side = "a", profs = {},
+    bags = { [2589] = 7 }, bank = {} }
+  EverlookCraftDB.chars["Player-1-Horde"] = { name = "Hordie", realm = "Mock Realm", side = "h", profs = {},
+    bags = { [2589] = 40 }, bank = {} }
+  local h = ns.stock.have(2589)
+  eq(h.alts, 7, "the other faction's character counted")
+  eq(#h.byChar, 1, "the other faction's character listed")
+  eq(ns.stock.owned()[2589], 32, "the planner's stock")
+  -- a character saved before factions were (no side) still counts
+  EverlookCraftDB.chars["Player-1-Horde"].side = nil
+  eq(ns.stock.have(2589).alts, 47, "a character without a faction")
+  EverlookCraftDB.chars["Player-1-Horde"].side = "h"
+  -- the game doesn't know your faction yet (early in loading): nobody is left out, and your saved side isn't guessed
+  local real = UnitFactionGroup
+  UnitFactionGroup = function() return nil end
+  eq(ns.stock.have(2589).alts, 47, "left out while your faction is unknown")
+  eq(ns.me().side, "a", "your saved faction overwritten by a guess")
+  UnitFactionGroup = real
+  EverlookCraftDB.chars["Player-1-Horde"] = nil
+end)
+
 step("a kept route: reused until the target or a switch changes", function()
   local route = ns.plans.calculate(197, 200)
   check(route and #route.steps > 0, "no route")

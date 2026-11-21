@@ -61,6 +61,15 @@ function ns.sameRealm(c, realms)
   return realms[realmKey(c.realm)] or false
 end
 
+-- Can this character mail you things? Same realm (or a connected one) and the same faction: mail doesn't cross
+-- factions. A character saved before its faction was (no side), or a moment the game doesn't know yours yet, counts.
+function ns.canMail(c, realms)
+  if not ns.sameRealm(c, realms) then return false end
+  local mine = ns.faction()
+  if not mine or not c or not c.side then return true end
+  return c.side == mine
+end
+
 ns.DEFAULTS = {
   settings = {
     vendorPatterns = true,   -- recipes whose pattern a vendor sells (the site's main route has them too)
@@ -117,10 +126,14 @@ end
 
 function ns.guid() return plain(try(UnitGUID, "player")) end
 
-function ns.side()
+-- your faction: "h", "a", or nil while the game doesn't know it yet
+function ns.faction()
   local f = plain(try(UnitFactionGroup, "player"))
-  return f == "Horde" and "h" or "a"
+  return (f == "Horde" and "h") or (f == "Alliance" and "a") or nil
 end
+
+-- your side for recipe lists: Alliance when the game doesn't say
+function ns.side() return ns.faction() or "a" end
 
 -- this character's record, made on first use
 function ns.me()
@@ -133,7 +146,7 @@ function ns.me()
   end
   c.name = plain(try(UnitName, "player")) or c.name
   c.realm = plain(try(GetRealmName)) or c.realm
-  c.side = ns.side()
+  c.side = ns.faction() or c.side   -- saved only when the game knows it (a guess would hide an alt's materials)
   local _, class = try(UnitClass, "player")
   c.class = plain(class) or c.class
   c.level = plain(try(UnitLevel, "player")) or c.level
