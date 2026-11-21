@@ -270,6 +270,17 @@ step("guild: only the GUILD channel, never yourself, nothing malformed", functio
   eq(#G.knows(2963), 1, "only Anna")
 end)
 
+step("guild: half-sent lists are capped too (a flood can't grow memory), and dropped once complete", function()
+  local max = G.MAX_MEMBERS
+  G.MAX_MEMBERS = G.count() + 3
+  local part = "K1:197:1:2:" .. G.encode({ 2963 })[1]
+  for i = 1, 10 do hear("Flood" .. i, { part }) end
+  eq(G.partial(), 3, "only 3 half-sent lists kept")
+  hear("Flood1", { "K1:197:2:2:" .. G.encode({ 3000 })[1] })
+  eq(G.partial(), 2, "a completed list leaves the half-sent ones")
+  G.MAX_MEMBERS = max
+end)
+
 step("guild: names are kept in memory only, never in the saved variables", function()
   local function scan(t, depth, seen)
     if depth > 12 or seen[t] then return false end
@@ -485,6 +496,18 @@ step("merchant: not enough money buys nothing; the setting hides the bar; closin
   check(why:find("money", 1, true), "why: " .. tostring(why))
   eq(#MOCK.bought, 0, "a purchase was made")
   MOCK.money = 1000000
+  -- an old 8 s timer never cancels a newer confirm: arm, cancel, arm again, then the first timer runs
+  local bar = EverlookCraftMerchantBar
+  M.refresh()
+  MOCK.timers = {}
+  bar.button:GetScript("OnClick")(bar.button)
+  local first = MOCK.timers[#MOCK.timers]
+  bar.cancel:GetScript("OnClick")(bar.cancel)
+  bar.button:GetScript("OnClick")(bar.button)
+  first()
+  check(bar.button:GetText():find("Buy for", 1, true), "the old timer disarmed the new confirm")
+  MOCK.timers = {}
+  bar.cancel:GetScript("OnClick")(bar.cancel)
   EverlookCraftDB.settings.merchantButton = false
   M.refresh()
   check(not EverlookCraftMerchantBar:IsShown(), "bar shown while turned off")

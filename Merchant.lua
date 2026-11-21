@@ -167,11 +167,13 @@ local function onClick()
   if not armed then
     local list, total = M.current()
     if #list == 0 then M.refresh() return end
-    armed = { list = list, total = total }
+    local this = { list = list, total = total }
+    armed = this
     bar.button:SetText("Buy for " .. ns.money(total, true))
     bar.cancel:Show()
     bar.sum:Hide()
-    C_Timer.After(8, function() if armed then disarm() end end)
+    -- the price stays up 8 s; a later click starts its own 8 s
+    C_Timer.After(8, function() if armed == this then disarm() end end)
     return
   end
   local plan = armed
