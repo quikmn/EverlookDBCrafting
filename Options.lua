@@ -454,7 +454,7 @@ app:Section("favor", "Merchant's Favor", function(stack)
   end)
   app:Widget(stack, "favor.bags")
   UI.Note(stack, "A Waylaid Crate lists several bundles; fill it with ONE and hand the Sealed Crate to Marcy Baker (Three Corners, Redridge) or Dokimi (west of the Crossroads) for Merchant's Favor. Its cost here is the crate on the auction house plus the cheapest bundle, each item bought or crafted (a recipe one of your characters knows), whichever is cheaper. Crate turn-ins give no Trade Logistics reputation. Performance Bonus doubles the Favor 5-15% of the time and isn't counted. Artisan crates' Favor isn't known yet.")
-end, { icon = "coins", desc = "Which Waylaid Crate gives the most Merchant's Favor for the least gold, at today's prices." })
+end, { icon = "bag", desc = "Which Waylaid Crate gives the most Merchant's Favor for the least gold, at today's prices." })
 
 ---------------------------------------------------------------------------------------------------------------------
 -- Characters and stock

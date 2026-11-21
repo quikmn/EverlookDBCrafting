@@ -277,9 +277,9 @@ app:Section("vendors", "Trainers and merchants", function(stack)
   end)
   app:Widget(stack, "merchant.button")
   UI.ButtonRow(stack, {
-    { label = "Forget this realm's", width = 180, confirm = true, onClick = function() C.forget(); app:Refresh() end,
-      desc = "Forget the trainer fees and merchant prices saved on this realm; the data's are used again after a /reload.",
+    { label = "Forget this realm's prices", width = 210, confirm = true, onClick = function() C.forget(); app:Refresh() end,
+      desc = "Forget the trainer fees and merchant prices saved on this realm; the addon's own data is used again after a /reload.",
       keywords = { "reset", "clear", "fees", "prices" } },
   })
   UI.Note(stack, "Fees and prices are saved only on this PC, in this addon's own saved variables. Learn skills a trainer showed are marked as known (no ~) in the planner.")
-end, { icon = "coins" })
+end, { icon = "scroll" })

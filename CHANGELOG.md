@@ -7,6 +7,7 @@
 - "Buy what the route needs": clicking again after Cancel keeps the price up its full 8 seconds.
 - Sorting your bank is lighter: the bank is counted once when things settle, not once per slot.
 - Shift-click on a crate or recipe links it in chat more reliably.
+- /ecraft > Trainers and merchants: the button reads "Forget this realm's prices" (it was cut short). Merchant's Favor and Trainers and merchants have their own page icons.
 - The "Window size" setting is named for what it sizes: the Crafting list, the recipe browser and Merchant's Favor.
 - The CraftColors addon is now part of EverlookDB Crafting. In the profession window each recipe name is in its skill-up colour (orange, yellow, green, gray, or your own shades), the row under the mouse brightens, and after the name you see the chance that one craft raises your skill ("37%", on yellow and green recipes) and how many you can make from your bags ("(4)"; "(4 +5)" with your bank and other characters turned on). Where the game already shows "[4]", the count isn't said twice, and a long name is shortened just enough to make room. Settings are on the new "Profession window" page of /ecraft (the search box finds each one); `/ecraft colors off` switches the colours off, `/ecraft reset colors` puts them back.
 - Your CraftColors settings are carried over the first time both addons are enabled. An older CraftColors that is still enabled keeps drawing and EverlookDB Crafting stands down, saying once that you can disable CraftColors; the last CraftColors stands down by itself instead.

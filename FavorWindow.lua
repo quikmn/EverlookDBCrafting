@@ -166,7 +166,7 @@ end
 
 local function make()
   if f then return f end
-  f = ns.widgets.Window({ name = "EverlookCraftFavor", posKey = "favor", title = "Merchant's Favor", icon = "coins",
+  f = ns.widgets.Window({ name = "EverlookCraftFavor", posKey = "favor", title = "Merchant's Favor", icon = "bag",
     width = 780, height = 600, minWidth = 760, minHeight = 380, point = "CENTER", x = 220, y = 20, top = 130,
     hint = "Hover a crate for every bundle. Fill it with one of them." })
   T = f.T
