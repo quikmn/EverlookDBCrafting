@@ -33,7 +33,9 @@ function FW.lines(res)
     for _, o in ipairs(res.options) do if o ~= b then n = n + 1 end end
     if n > 0 then l2[#l2 + 1] = ("%d other bundle%s"):format(n, n == 1 and "" or "s") end
   else
-    l2[#l2 + 1] = "Fill: no price for any bundle"
+    -- the reason ("no price for any bundle") is on line 3: here only how many bundles there are
+    local n = #res.options
+    l2[#l2 + 1] = ("Fill: %d bundle%s, none with a price yet"):format(n, n == 1 and "" or "s")
   end
   if c.money then l2[#l2 + 1] = ns.money(c.money) .. " back" end
   if c.rep and c.rep > 0 then l2[#l2 + 1] = c.rep .. " reputation" end
@@ -73,7 +75,7 @@ local function buildRow(list)
   r.icon:SetSize(28, 28)
   r.icon:SetPoint("LEFT", 12, 0)
   r.rank = UI.Text(r, T.fontSmall, T.muted)
-  r.rank:SetPoint("TOPLEFT", 4, -4)
+  r.rank:SetPoint("TOPLEFT", 8, -4)
   r.name = UI.Text(r, T.font, T.text)
   r.name:SetPoint("TOPLEFT", 50, -7)
   r.name:SetWordWrap(false)
@@ -125,8 +127,8 @@ local function buildRow(list)
     if not self.item then return end
     FW.selected = self.item.c.id
     if IsShiftKeyDown() then
-      local _, link = ns.try(GetItemInfo, self.item.c.id)
-      if link and ChatEdit_InsertLink then ChatEdit_InsertLink(link) end
+      local link = ns.itemLink(self.item.c.id)
+      if link and ChatEdit_InsertLink then pcall(ChatEdit_InsertLink, link) end
     end
     FW.render()
   end)

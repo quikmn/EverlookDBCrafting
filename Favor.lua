@@ -205,7 +205,8 @@ end
 -- What to do with the cheapest bundle: what to buy (the crate when it is on the auction house, the bundle's items, or
 -- the materials of the recipe that crafts it) and what to craft
 
--- { { itemID, count } } for the auction house (vendor goods left out)
+-- { { itemID, count } } for the auction house (vendor goods left out), minus what you already have on your characters
+-- (whatever "count my bags as free" says: that switch is about the ranking, a shopping list never buys what you have)
 function F.shoppingItems(res)
   local items, add = {}, {}
   local function put(id, n)
@@ -214,26 +215,27 @@ function F.shoppingItems(res)
     add[id] = { id, n }
     items[#items + 1] = add[id]
   end
-  if res.crate and res.crate.how == "ah" then put(res.c.id, 1) end
+  -- no priced fill: nothing to shop for (a crate on its own fills nothing)
   local b = res.best
-  if b and b.buy > 0 then
+  if not b then return items end
+  if res.crate and res.crate.how == "ah" and (res.crate.have or 0) == 0 then put(res.c.id, 1) end
+  local short = b.n - math.min(have(b.id), b.n)
+  if short > 0 then
     if b.how == "craft" then
-      local crafts = math.ceil(b.buy / (b.via.yield or 1) - 1e-6)
+      local crafts = math.ceil(short / (b.via.yield or 1) - 1e-6)
       for _, m in ipairs((ns.matsOf(b.via))) do
         if not ns.prices.vendor(m[1]) then
           local need = crafts * m[2]
-          if ns.settings().favorBagsFree then need = need - math.min(have(m[1]), need) end
-          put(m[1], need)
+          put(m[1], need - math.min(have(m[1]), need))
         end
       end
     elseif b.how == "ah" then
-      put(b.id, b.buy)
+      put(b.id, short)
     end
   end
   return items
 end
 
--- the recipe and number of crafts the cheapest bundle needs, or nil when it is bought
 function F.craftNeed(res)
   local b = res.best
   if not b or b.how ~= "craft" or b.buy <= 0 then return nil end

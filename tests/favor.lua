@@ -120,6 +120,9 @@ step("count my bags as free: what you have costs nothing (off: at value)", funct
   me.bags = { [SILVER] = 15, [HERBS] = 1 }
   local res = F.evaluate(F.crate(HERBS))
   eq(res.total, 150, "off: owned counts at value")
+  -- the shopping list never buys what you have, whatever the switch says
+  local items = F.shoppingItems(res)
+  eq(#items, 1, "off: only silverleaf (you have the crate)"); eq(items[1][1], SILVER, "silverleaf"); eq(items[1][2], 5, "off: 5 silverleaf")
   EverlookCraftDB.settings.favorBagsFree = true
   res = F.evaluate(F.crate(HERBS), { bagsFree = true })
   eq(res.best.id, SILVER, "silverleaf"); eq(res.best.buy, 5, "5 to buy"); eq(res.best.cost, 25, "5 x 5c")
@@ -156,6 +159,19 @@ step("a crate not on the auction house, or with unknown Favor, sorts last and sa
     end
   end
   check(ranked > 1, "ranked rows to sort by total")
+end)
+
+step("a crate with no priced bundle: the reason once, and nothing to shop for", function()
+  local saved = PRICES
+  PRICES = { [HERBS] = 50 }
+  local res = F.evaluate(F.crate(HERBS))
+  check(res.best == nil and res.why, "not ranked")
+  local l2, l3 = ns.favorWindow.lines(res)
+  check(l2:find("5 bundles, none with a price yet", 1, true), "line 2: " .. l2)
+  check(not l2:find("no price for any bundle", 1, true), "the reason isn't said twice")
+  check(l3:find("Not ranked: no price for any bundle", 1, true), "line 3: " .. l3)
+  eq(#F.shoppingItems(res), 0, "no list with only the crate on it")
+  PRICES = saved
 end)
 
 step("filters: your level, a tier", function()
