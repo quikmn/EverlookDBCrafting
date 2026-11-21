@@ -172,6 +172,22 @@ step("send missing to EverlookDB Auctions: its shopping list, vendor goods left 
   eq(sent.name, "Crafting list", "list name")
   eq(#sent.items, 1, "only the bolts (thread is a vendor good)")
   eq(sent.items[1][1], BOLT, "bolts"); eq(sent.items[1][2], 2, "two")
+  -- item names still loading: it tries again by itself and only the last try speaks (never "couldn't send: loading")
+  local tries = 0
+  EverlookDBAuctionsAPI = { version = 2, addShoppingList = function(name, items)
+    tries = tries + 1
+    if tries < 3 then return false, "loading" end
+    sent = { name = name, items = items }; return true, false end }
+  sent = nil
+  MOCK.timers, MOCK.log = {}, {}
+  ok, why = L.sendToAuctions()
+  check(ok == nil and why == "loading", "first try waits")
+  MOCK.RunTimers()
+  check(not sent and #MOCK.log == 0, "second try still loading, says nothing: " .. tostring(MOCK.log[1]))
+  MOCK.RunTimers()
+  check(sent and tries == 3, "sent on the third try")
+  eq(#MOCK.log, 1, "one message")
+  check(MOCK.log[1]:find("shopping list", 1, true) and not MOCK.log[1]:find("loading", 1, true), "message: " .. MOCK.log[1])
   L.setMode(BOLT, nil)
   EverlookDBAuctionsAPI = { version = 1 }
   ok, why = L.sendToAuctions()

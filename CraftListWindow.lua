@@ -261,7 +261,8 @@ function LW.primary()
   end
   local ok, msg = ns.craftList.sendToAuctions()
   if ok then ns.print(ns.craftList.sentText(#ns.craftList.shoppingItems(tree)))
-  elseif ok == false then ns.print(msg) end
+  elseif ok == nil then ns.print("loading item names, one moment...")
+  else ns.print("couldn't send the list: " .. tostring(msg)) end
 end
 
 function LW.render()

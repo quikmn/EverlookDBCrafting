@@ -231,13 +231,18 @@ function L.sendToAuctions(retry)
   local ok, res, why = pcall(api.addShoppingList, L.LIST_NAME, items)
   if not ok then return false, "EverlookDB Auctions refused the list." end
   if res then return true, why end
-  if why == "loading" and (retry or 0) < 3 and C_Timer then
+  -- the game hasn't loaded every item's name yet: ask for them and try again shortly (only the last try speaks)
+  if why == "loading" and (retry or 0) < 5 and C_Timer and C_Timer.After then
+    for _, it in ipairs(items) do
+      if C_Item and C_Item.RequestLoadItemDataByID then pcall(C_Item.RequestLoadItemDataByID, it[1]) end
+    end
     C_Timer.After(1, function()
       local ok2, msg = L.sendToAuctions((retry or 0) + 1)
-      ns.print(ok2 and L.sentText(#items) or ("couldn't send the list: " .. tostring(msg)))
+      if ok2 ~= nil then ns.print(ok2 and L.sentText(#L.shoppingItems()) or ("couldn't send the list: " .. tostring(msg))) end
     end)
     return nil, "loading"
   end
+  if why == "loading" then return false, "the game hasn't loaded some item names yet; try again in a moment." end
   return false, tostring(why or "unknown reason")
 end
 
