@@ -297,10 +297,15 @@ function F.tipLines(t, id)
   local res = F.tipInfo(id)
   if not res then return end
   local c = res.c
-  local value = c.favor and tostring(c.favor) or "unknown"
-  if res.perFavor then value = value .. ", " .. F.perFavorText(res) end
-  t:Line("Merchant's Favor", value, { note = F.tierName(c) .. (c.crafted and ", crafted" or ", gathered") })
-  if res.best then t:Detail("Cheapest fill", F.optionName(res.best) .. "  " .. ns.money(res.best.cost)) end
+  -- money only ever alone in the right-hand column (the shared tooltip layout lines up its coins)
+  local Tip = LibStub and LibStub("EverlookTooltip-1", true)
+  local function money(c, approx)
+    if Tip then return Tip.Money(c, approx and { approx = true } or nil) end
+    return (approx and "~" or "") .. ns.money(c)
+  end
+  t:Line("Merchant's Favor", c.favor and tostring(c.favor) or "unknown", { note = F.tierName(c) .. (c.crafted and ", crafted" or ", gathered") })
+  if res.perFavor then t:Detail("Gold per Favor", money(res.perFavor, true), { always = true }) end
+  if res.best then t:Detail("Cheapest fill", money(res.best.cost), { note = F.optionName(res.best) }) end
   if res.why then t:Detail("No gold per Favor", res.why) end
 end
 ns.DEFAULTS.settings.tipFavor = true

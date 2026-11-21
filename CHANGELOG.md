@@ -1,5 +1,9 @@
 # EverlookDB Crafting
 
+## Unreleased
+- Tooltips: one tidy look shared by every EverlookDB addon: brighter labels, values on the right, a blank line between the price and the crafting lines. The recipes a material is used in show in their colour at your skill (orange, yellow, green), without "Tailoring" repeated on every row; your characters' names are in their class colours; "Guild members who know it" is now "Known in your guild". On a Waylaid Crate the gold per Favor and the cheapest fill's cost sit in the price column.
+- New setting "Solid tooltip background" (on by default, Tooltips page), shared by every EverlookDB addon.
+
 ## v0.2.1 (2026-11-21)
 - Works again after today's WoW Forever client update, which stopped telling addons the realm's name: your characters, which alts' materials count (same realm) and the trainer and merchant prices now know the realm from your character instead. Characters and prices saved without a realm since the update are put right when you log in, as long as all your characters are on one realm; with characters on more than one realm they are left alone and the Trainers and merchants page says so.
 

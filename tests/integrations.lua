@@ -157,11 +157,16 @@ step("tooltip, crafted: you can make this (skill, in colour), your alts on this 
   -- the raw line carries the recipe's colour at your skill
   local raw = Tip:Collect("item", { id = BOLT, kind = "item" }, false)
   local r = ns.recipes(TAILORING).bySpell[2963]
-  local c = ns.COLORS[ns.colorAt(r, 60)]
+  local key = ns.colorAt(r, 60)
+  local c = ns.COLORS[key]
   local code = ("|cff%02x%02x%02x"):format(c[1] * 255, c[2] * 255, c[3] * 255)
   local found = false
   for _, l in ipairs(raw) do if l[2] and l[2]:find(code, 1, true) then found = true end end
-  check(found, "skill not in the recipe's colour")
+  -- grey (no more skill-ups) stays plain white: grey text is hard to read on a tooltip
+  if key == "gray" then check(not found, "grey skill coloured") else check(found, "skill not in the recipe's colour") end
+  -- at a skill where the recipe is orange, it is
+  local low = r.learn or 1
+  eq(ns.colorAt(r, low) ~= "gray", true, "orange at its learn skill")
 end)
 
 step("tooltip, recipe item: known by / learnable by / learnable later, and only these", function()

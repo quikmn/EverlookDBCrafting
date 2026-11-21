@@ -194,12 +194,14 @@ end)
 
 step("the tooltip line on a crate", function()
   local lines = {}
-  local t = { Line = function(_, a, b, o) lines[#lines + 1] = { a, b, o } end, Detail = function(_, a, b) lines[#lines + 1] = { a, b } end }
+  local t = { Line = function(_, a, b, o) lines[#lines + 1] = { a, b, o } end, Detail = function(_, a, b, o) lines[#lines + 1] = { a, b, o } end }
   ns.tooltips.lines(t, HERBS)
   eq(lines[1][1], "Merchant's Favor", "label")
-  check(lines[1][2]:find("^5, ~"), "value: " .. lines[1][2])
-  check(lines[1][2]:find("per Favor", 1, true), "per Favor")
-  check(lines[2][1] == "Cheapest fill" and lines[2][2]:find("20 Silverleaf", 1, true), "cheapest fill line")
+  eq(lines[1][2], "5", "value: the Favor alone")
+  -- money only ever alone in the right-hand column
+  check(lines[2][1] == "Gold per Favor" and lines[2][2]:find("^~%d"), "gold per Favor: " .. tostring(lines[2][2]))
+  check(lines[3][1] == "Cheapest fill" and lines[3][3].note:find("20 Silverleaf", 1, true), "cheapest fill line")
+  check(not lines[3][2]:find("Silverleaf", 1, true), "no words next to the money")
   lines = {}
   ns.tooltips.lines(t, ART_ORE)
   check(lines[1][2]:find("unknown", 1, true), "unknown Favor said plainly")

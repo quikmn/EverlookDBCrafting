@@ -85,11 +85,17 @@ local function knows(c, r)
   return p and p.known and p.known[r.spell] and true or false
 end
 
-local function nameOf(e) return e.me and "You" or (e.c.name or "?") end
+-- "You" or the character's name, in their class colour (when the shared tooltip layout is there)
+local function nameOf(e)
+  local n = e.me and "You" or (e.c.name or "?")
+  return Tip and Tip.ClassName and Tip.ClassName(n, e.c.class) or n
+end
 
--- "Anna, Bob, Cid +2"
+-- "Anna, Bob, Cid +2" (never "+1": that name is shown instead)
 function TT.names(list, max)
+  if Tip and Tip.Names then return Tip.Names(list, max or MAX_NAMES) end
   max = max or MAX_NAMES
+  if #list == max + 1 then max = #list end
   local shown = {}
   for i = 1, math.min(#list, max) do shown[i] = list[i] end
   local s = table.concat(shown, ", ")
@@ -150,7 +156,7 @@ function TT.craftedInfo(id)
           if not res.me then res.me = { r = r, rank = rank } end
         elseif not altSeen[e.guid] then
           altSeen[e.guid] = true
-          res.alts[#res.alts + 1] = { name = e.c.name or "?", prof = ns.profName(r.skill), rank = rank }
+          res.alts[#res.alts + 1] = { name = e.c.name or "?", class = e.c.class, prof = ns.profName(r.skill), rank = rank }
         end
       end
     end
@@ -195,10 +201,18 @@ end
 local function on(key) return ns.settings()[key] ~= false end
 local function guildOn() return on("tipGuild") and ns.guild and ns.guild.enabled() end
 
+-- the recipe's colour at a skill, or nil when it is grey (no more skill-ups): grey text is hard to read on a tooltip
+local function skillColor(r, rank)
+  local key = rank and ns.colorAt(r, rank) or "gray"
+  if key == "gray" or key == "grey" then return nil end
+  return ns.COLORS[key]
+end
 local function colorCode(r, rank)
-  local c = ns.COLORS[rank and ns.colorAt(r, rank) or "gray"] or ns.COLORS.gray
+  local c = skillColor(r, rank)
+  if not c then return "" end
   return ("|cff%02x%02x%02x"):format(c[1] * 255, c[2] * 255, c[3] * 255)
 end
+local function classed(name, class) return Tip and Tip.ClassName and Tip.ClassName(name, class) or name end
 
 function TT.reagentLines(t, id)
   if not on("tipReagent") then return end
@@ -212,8 +226,21 @@ function TT.reagentLines(t, id)
     table.sort(profs)
     local n = #info.recipes
     t:Line("Used in", n == 1 and "1 of your recipes" or (n .. " of your recipes"), { note = table.concat(profs, ", ") })
-    for i = 1, math.min(n, MAX_NAMES) do t:Detail(info.recipes[i].name, ns.profName(info.recipes[i].skill)) end
-    if n > MAX_NAMES then t:Detail("and " .. (n - MAX_NAMES) .. " more") end
+    -- the recipes, each in its colour at this character's skill (orange, yellow, green, grey); the profession on the
+    -- right only when they are from more than one
+    local me = ns.me and ns.me()
+    local items = {}
+    for i, r in ipairs(info.recipes) do
+      local p = me and me.profs and me.profs[r.skill]
+      local known = p and p.known and p.known[r.spell]
+      items[i] = { r.name, #profs > 1 and ns.profName(r.skill) or nil, color = known and skillColor(r, p.rank) or nil }
+    end
+    if t.List then
+      t:List(items, { max = MAX_NAMES, more = "more" })
+    else
+      for i = 1, math.min(n, MAX_NAMES) do t:Detail(items[i][1], items[i][2]) end
+      if n > MAX_NAMES then t:Detail("and " .. (n - MAX_NAMES) .. " more") end
+    end
   end
   local need = TT.routeNeed(id)
   if need then
@@ -251,19 +278,20 @@ function TT.craftedLines(t, id)
   local info = TT.craftedInfo(id)
   if not info then return end
   if info.me then
-    t:Line("You can make this", colorCode(info.me.r, info.me.rank) .. ns.profName(info.me.r.skill) .. " " .. (info.me.rank or "?") .. "|r")
+    local code = colorCode(info.me.r, info.me.rank)
+    t:Line("You can make this", code .. ns.profName(info.me.r.skill) .. " " .. (info.me.rank or "?") .. (code ~= "" and "|r" or ""))
   end
   if #info.alts > 0 then
     local names = {}
-    for _, a in ipairs(info.alts) do names[#names + 1] = a.name end
+    for _, a in ipairs(info.alts) do names[#names + 1] = classed(a.name, a.class) end
     t:Line(#info.alts == 1 and "Your alt can make this" or "Your alts can make this", TT.names(names))
     for i = 1, math.min(#info.alts, MAX_NAMES) do
       local a = info.alts[i]
-      t:Detail(a.name, a.prof .. " " .. (a.rank or "?"))
+      t:Detail(classed(a.name, a.class), a.prof .. " " .. (a.rank or "?"))
     end
   end
   if guildOn() and #info.guild > 0 then
-    t:Line("Guild can make this", TT.names(info.guild), { note = #info.guild > 1 and (#info.guild .. " members") or nil })
+    t:Line("Guild can make this", TT.names(info.guild))
   end
 end
 
@@ -284,7 +312,7 @@ function TT.recipeLines(t, id)
     end
   end
   if guildOn() and #info.guild > 0 then
-    t:Line("Guild members who know it", TT.names(info.guild), { note = #info.guild > 1 and (#info.guild .. " members") or nil })
+    t:Line("Known in your guild", TT.names(info.guild))
   end
 end
 
@@ -317,7 +345,8 @@ ns.whenLoaded(function()
   if not Tip then return end
   -- EverlookDB Auctions keeps this setting too; when it is installed, its choice is the one already applied
   if not auctionsLoaded() then TT.detail() end
-  Tip:Register({ id = "EverlookDBCrafting.crafting", kind = "item", order = Tip.ORDER.source + 5,
+  if Tip.LoadSolid then Tip:LoadSolid(ns.settings()) end
+  Tip:Register({ id = "EverlookDBCrafting.crafting", kind = "item", order = Tip.ORDER.crafting or (Tip.ORDER.source + 5),
     add = function(t, ctx) if ctx.id then TT.lines(t, ctx.id) end end })
 end)
 
@@ -348,6 +377,7 @@ bool("tip.favor", "tipFavor", "Waylaid Crates: Merchant's Favor and gold per Fav
   { "tooltip", "crate", "waylaid", "favor", "merchant's favor" })
 bool("tip.guild", "tipGuild", "Guild members in these lines",
   "Guild members who know the recipe (needs guild sharing, see Guild).", { "tooltip", "guild", "crafter" })
+if Tip and Tip.SolidSetting then Tip:SolidSetting(app, function() return ns.settings() end) end
 app:Setting({
   key = "tipdetail", type = "choice", label = "Tooltip details", width = 200,
   keywords = { "tooltip", "shift", "detail", "finer" },
@@ -366,5 +396,6 @@ app:Section("tooltips", "Tooltips", function(stack)
   app:Widget(stack, "tip.favor")
   app:Widget(stack, "tip.guild")
   app:Widget(stack, "tipdetail")
-  UI.Note(stack, "Tooltip details is shared by every EverlookDB addon's tooltip lines. Your characters' names come from this addon's own saved variables on this PC; guild members' names are only kept in memory until you log out.")
+  if app:GetSetting("tipsolid") then app:Widget(stack, "tipsolid") end
+  UI.Note(stack, "Tooltip details and the solid background are shared by every EverlookDB addon's tooltip lines. Your characters' names come from this addon's own saved variables on this PC; guild members' names are only kept in memory until you log out.")
 end, { icon = "tooltip", desc = "What this addon adds to item tooltips: materials, crafted items, recipes and Waylaid Crates." })
