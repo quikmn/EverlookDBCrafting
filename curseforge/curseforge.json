@@ -1,0 +1,14 @@
+{
+  "projectId": 1819447,
+  "name": "EverlookDB Crafting",
+  "slug": "everlookdb-crafting",
+  "releaseType": "release",
+  "relations": [
+    {
+      "slug": "everlookdbauctions",
+      "type": "optionalDependency"
+    }
+  ],
+  "screenshots": "screenshots",
+  "syncOnRelease": false
+}

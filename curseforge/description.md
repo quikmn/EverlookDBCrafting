@@ -1,0 +1,68 @@
+# EverlookDB Crafting
+
+Level your professions the cheap and reliable way on WoW Forever. `/ecraft` (also `/eprof`).
+
+- **Skill-Up planner.** Pick a profession and a target (default: the next rank's cap). Calculate gives the cheapest
+  route at today's prices: each step is a recipe, its skill range, the crafts you can expect and the crafts for a 90%
+  safety buffer. Cost tiles show the materials to buy, patterns, trainer fees and the total, plus what the crafts
+  would sell for (shown, not counted). Rank trainings show where they fall, with a Map button to the nearest
+  trainer for your side. The route is kept for your character, so the numbers don't jump after a /reload; it changes
+  only when you change the target or a switch, or press Recalculate.
+- **Every step reliably gives its skill-ups.** Only recipes you know, or can learn now for your faction (a trainer, a
+  teacher outside a dungeon, a vendor pattern) are routed: the same rule as the professions guide on
+  [everlookdb.com](https://everlookdb.com/professions.html). Dungeon, drop, quest, reputation and unknown recipes are
+  never in the route. "Patterns from the auction house" adds drop recipes whose pattern is for sale right now.
+- **Skill-Up guide.** A small movable checklist: the current step with a live skill bar and the chance of a skill-up
+  now, what to buy at the auction house, what to buy from vendors (Map: the nearest vendor), what to make first, the
+  materials still needed, and every step. Right-click a step to mark it done. "Show recipe" selects the step's recipe
+  in your profession window; you craft with the game's own button.
+- **Your materials on every character.** Bags (and the reagent bag) and, from your last visit, the bank and reagent
+  bank of each character count as owned. "Don't count my alts' materials" leaves the others out.
+- **Prices** from EverlookDB Auctions' scans when it is installed, else Auctionator's. Vendor goods cost what a
+  merchant last showed you, else what WoW Forever's vendors charge. A material with no price shows "?" and is never
+  guessed in a total.
+- **Profession scanner.** Opening a profession window saves your skill and recipes. Someone else's (a linked or guild
+  profession) is never saved as yours. Where the window shows other reagents than the game files (the server changed
+  a recipe), the window's version is used everywhere.
+
+## Commands
+
+| Command | What it does |
+|---|---|
+| `/ecraft` | the window (planner, characters, prices, guide settings); search finds any setting |
+| `/ecraft plan [profession]` | the planner, e.g. `/ecraft plan tailoring` |
+| `/ecraft guide` | open or close the guide |
+| `/ecraft status` | what the addon knows: characters, professions, routes, price source |
+| `/ecraft <setting> <value>` | change a setting, e.g. `/ecraft noalts on` |
+| `/ecraft help` | all commands |
+
+## Privacy
+
+Character names and what they carry are kept only on your PC, in this addon's own saved variables
+(`EverlookCraftDB`). Nothing is uploaded: the EverlookDB uploader does not read this addon's file.
+
+## For other addons
+
+`EverlookCraftAPI` (read-only): `recipe(spell)`, `chance(spell, skill)`, `stock(item)`, `knownBy(spell)`. See `API.lua`.
+
+## Data and credits
+
+`Data.lua` is written by everlookdb.com's `tools/craft_addon_data.py`:
+
+- recipes, skill colours and materials: the WoW Forever client data;
+- trainers, vendors, rank fees and spawns: classic-db (CMaNGOS, GPL-3.0, https://github.com/cmangos/classic-db);
+- what WoW Forever's vendors charge, server learn ranks and where its NPCs stand: Efficient Games' EG Link
+  (https://github.com/JIVESCORP/eg-link-output-wowf), licensed under CC BY 4.0
+  (https://creativecommons.org/licenses/by/4.0/); changed by EverlookDB (selected fields, merged with classic-db and
+  the client data);
+- which recipes are reliably learnable: everlookdb.com's own rule (`web/learntier.js`).
+
+The skill-up chance is the classic formula: orange always, yellow and green (gray - skill) / (gray - yellow), gray never.
+
+## License
+
+GPL-3.0-or-later (see LICENSE), because the data includes classic-db facts.
+
+## Tests
+
+`python -P tests/run.py` (lupa; the parity test needs node and the Quarry repo at D:\Dev\Quarry).
