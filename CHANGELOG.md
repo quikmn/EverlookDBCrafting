@@ -1,6 +1,6 @@
 # EverlookDB Crafting
 
-## Unreleased
+## v0.2.1 (2026-11-21)
 - Works again after today's WoW Forever client update, which stopped telling addons the realm's name: your characters, which alts' materials count (same realm) and the trainer and merchant prices now know the realm from your character instead. Characters and prices saved without a realm since the update are put right when you log in, as long as all your characters are on one realm; with characters on more than one realm they are left alone and the Trainers and merchants page says so.
 
 ## v0.2.0 (2026-11-21)
