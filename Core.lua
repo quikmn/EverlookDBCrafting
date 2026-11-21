@@ -192,6 +192,15 @@ function ns.itemInfo(id)
   return name or ("item " .. id), icon, it and it[2] or 1
 end
 
+-- an item's chat link, or nil while the game hasn't loaded it (C_Item first: the global may be gone in this client)
+function ns.itemLink(id)
+  local link = select(2, try(C_Item and C_Item.GetItemInfo, id))
+  if not link then link = select(2, try(GetItemInfo, id)) end
+  link = plain(link)
+  if not link and C_Item and C_Item.RequestLoadItemDataByID then try(C_Item.RequestLoadItemDataByID, id) end
+  return type(link) == "string" and link or nil
+end
+
 -- the icon of a recipe: what it makes, else the profession's
 function ns.recipeIcon(r)
   if not r then return 134400 end

@@ -378,7 +378,7 @@ end
 function B.link(r)
   if not r then return end
   local link
-  if r.creates and r.creates ~= 0 then link = select(2, ns.try(GetItemInfo, r.creates)) end
+  if r.creates and r.creates ~= 0 then link = ns.itemLink(r.creates) end
   if not link then
     link = ns.try(C_Spell and C_Spell.GetSpellLink, r.spell) or ns.try(GetSpellLink, r.spell)
   end
