@@ -16,6 +16,24 @@ Level your professions the cheap and reliable way on WoW Forever. `/ecraft` (als
   now, what to buy at the auction house, what to buy from vendors (Map: the nearest vendor), what to make first, the
   materials still needed, and every step. Right-click a step to mark it done. "Show recipe" selects the step's recipe
   in your profession window; you craft with the game's own button.
+- **Crafting list** (`/ecraft list`). Plan what to craft, account wide: each recipe with - and + for its count, and
+  under it a material tree with what you have in bags, bank and on your other characters. Materials one of your
+  characters can make break down into their own materials (Craft or Buy on each). Each craft takes one off. "Send
+  missing to Auctions" puts the rest on a shopping list in EverlookDB Auctions; vendor goods have a Map button.
+- **Recipe browser** (`/ecraft recipes [words]`). Every recipe of a profession, learned or not. Search by name or by a
+  reagent ("silk cloth"); filters Known, Not known and Favourites. Each recipe shows its skill colours, your chance
+  now, where every reagent comes from, how to learn it (trainer, vendor, drops, quests) and who of you knows it.
+- **Merchant's Favor** (`/ecraft favor`). Every Waylaid Crate ranked by gold per Favor at today's prices: the crate on
+  the auction house plus its cheapest bundle (bought, or crafted with a recipe one of your characters knows). Sort by
+  gold per Favor or the cheapest total; filter by tier, your level, faction and "My bags free". Each crate has a Map
+  button to the turn-in NPC and a Shopping list button for EverlookDB Auctions (minus what you have).
+- **Item tooltips.** On a material: how many of your recipes use it and how many more your route needs. On something
+  crafted: who of you can make it. On a recipe: which of your characters know it or can learn it. On a Waylaid Crate:
+  its Favor and gold per Favor. Each part can be turned off.
+- **Guild crafters.** Guild members who run this addon see which recipes each other's current character knows ("Guild
+  can make this" in tooltips). Guild channel only, throttled, names kept in memory only. Off in /ecraft > Guild.
+- **"Buy what the route needs"** under an open merchant that sells vendor materials your route still needs. The first
+  click shows the price, the second buys, never more than needed.
 - **Your materials on every character.** Bags (and the reagent bag) and, from your last visit, the bank and reagent
   bank of each character count as owned. "Don't count my alts' materials" leaves the others out.
 - **Prices** from EverlookDB Auctions' scans when it is installed, else Auctionator's. Vendor goods cost what a
@@ -34,9 +52,12 @@ Level your professions the cheap and reliable way on WoW Forever. `/ecraft` (als
 
 | Command | What it does |
 |---|---|
-| `/ecraft` | the window (planner, characters, prices, guide settings); search finds any setting |
+| `/ecraft` | the settings window (planner, characters, prices, every setting); search finds any setting |
 | `/ecraft plan [profession]` | the planner, e.g. `/ecraft plan tailoring` |
 | `/ecraft guide` | open or close the guide |
+| `/ecraft list [add <recipe> [count] \| clear]` | the Crafting list |
+| `/ecraft recipes [words]` | the recipe browser, searching for a recipe or reagent |
+| `/ecraft favor` | Merchant's Favor: Waylaid Crates ranked by gold per Favor |
 | `/ecraft colors [on \| off]` | the profession window colours: their page, or switch them on or off |
 | `/ecraft status` | what the addon knows: characters, professions, routes, price source |
 | `/ecraft <setting> <value>` | change a setting, e.g. `/ecraft noalts on` |
@@ -62,6 +83,7 @@ Character names and what they carry are kept only on your PC, in this addon's ow
   (https://github.com/JIVESCORP/eg-link-output-wowf), licensed under CC BY 4.0
   (https://creativecommons.org/licenses/by/4.0/); changed by EverlookDB (selected fields, merged with classic-db and
   the client data);
+- recipe drops, Merchant's Favor vendors and per-crate Favor: AllTheThings (MIT), changed by EverlookDB;
 - which recipes are reliably learnable: everlookdb.com's own rule (`web/learntier.js`).
 
 The skill-up chance is the classic formula: orange always, yellow and green (gray - skill) / (gray - yellow), gray never.

@@ -1,6 +1,13 @@
 # EverlookDB Crafting
 
 ## Unreleased
+- Merchant's Favor: a crate's Shopping list never puts on what you already have (the crate, the bundle, its materials), also with "My bags free" off. A crate with no priced bundle has no list to make, and its row says why once instead of twice.
+- Merchant's Favor: below level 10 the empty list says crates open at level 10 and how to see them anyway. The ranking updates after you open a profession window (a new recipe can make a bundle cheaper to craft).
+- Crafting list: "Send missing to Auctions" waits for item names the game hasn't loaded yet and tries again by itself, without the "couldn't send the list: loading" message.
+- "Buy what the route needs": clicking again after Cancel keeps the price up its full 8 seconds.
+- Sorting your bank is lighter: the bank is counted once when things settle, not once per slot.
+- Shift-click on a crate or recipe links it in chat more reliably.
+- The "Window size" setting is named for what it sizes: the Crafting list, the recipe browser and Merchant's Favor.
 - The CraftColors addon is now part of EverlookDB Crafting. In the profession window each recipe name is in its skill-up colour (orange, yellow, green, gray, or your own shades), the row under the mouse brightens, and after the name you see the chance that one craft raises your skill ("37%", on yellow and green recipes) and how many you can make from your bags ("(4)"; "(4 +5)" with your bank and other characters turned on). Where the game already shows "[4]", the count isn't said twice, and a long name is shortened just enough to make room. Settings are on the new "Profession window" page of /ecraft (the search box finds each one); `/ecraft colors off` switches the colours off, `/ecraft reset colors` puts them back.
 - Your CraftColors settings are carried over the first time both addons are enabled. An older CraftColors that is still enabled keeps drawing and EverlookDB Crafting stands down, saying once that you can disable CraftColors; the last CraftColors stands down by itself instead.
 - Merchant's Favor: "couldn't make the list: loading" is gone. When the game hasn't loaded an item's name yet (a crate you've never had), the list waits a moment and tries again by itself.
