@@ -303,7 +303,7 @@ end
 
 local app = ns.app
 app:Setting({ key = "guild.share", type = "bool", label = "Share recipes with my guild",
-  desc = "Guild members with this addon see which recipes the character you play knows, and you see theirs (\"who in my guild can make this\"). Only the guild channel; names are never saved. Off: nothing is sent, answered or kept.",
+  desc = "Guild members with this addon see which recipes the character you play knows, and you see theirs.",
   keywords = { "guild", "share", "crafter", "who can craft", "privacy" }, default = true,
   get = function() return G.enabled() end,
   set = function(v)
@@ -320,5 +320,5 @@ app:Section("guild", "Guild", function(stack)
     if not inGuild() then return "|cff8d94a3not in a guild|r" end
     return tostring(members())
   end)
-  UI.Note(stack, "Sent: the recipe IDs of the character you are playing, on the guild channel only. Not sent: your alts, your bags, prices, names. Received lists stay in memory until you log out; nothing about other players is written to disk.")
-end, { icon = "share" })
+  UI.Note(stack, "Sent: which recipes the character you are playing knows, on the guild channel only. Not sent: your alts, your bags, prices, names. Received lists stay in memory until you log out; nothing about other players is written to disk. Switched off: nothing is sent, answered or kept.")
+end, { icon = "share", desc = "\"Guild can make this\" in tooltips: who in your guild knows a recipe." })
