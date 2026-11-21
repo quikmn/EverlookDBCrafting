@@ -44,7 +44,8 @@ end
 
 local function myNames()
   local n = plain(try(UnitName, "player"))
-  local full = n and plain(try(GetRealmName)) and (n .. "-" .. (plain(try(GetRealmName)):gsub("%s", "")))
+  local r = ns.realmName()
+  local full = n and r and (n .. "-" .. (r:gsub("%s", "")))
   return n, full
 end
 

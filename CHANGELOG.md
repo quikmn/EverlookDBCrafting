@@ -1,5 +1,8 @@
 # EverlookDB Crafting
 
+## Unreleased
+- Works again after today's WoW Forever client update, which stopped telling addons the realm's name: your characters, which alts' materials count (same realm) and the trainer and merchant prices now know the realm from your character instead. Characters and prices saved without a realm since the update are put right when you log in, as long as all your characters are on one realm; with characters on more than one realm they are left alone and the Trainers and merchants page says so.
+
 ## v0.2.0 (2026-11-21)
 - Your characters on the other faction no longer count as having materials (mail can't go between factions). Each character's faction is saved when you log in on it; one you haven't logged in on since still counts until then.
 - Materials on your characters on other realms no longer count as yours: mail can't cross realms. The planner, the Crafting list ("6 on Bankalt"), Merchant's Favor and the "(4 +5)" count in the profession window now count only characters on your realm (or a connected one), the same as the tooltips.

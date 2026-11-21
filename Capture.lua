@@ -14,7 +14,8 @@ ns.capture = C
 
 ns.DEFAULTS.settings.capture = true
 
-local function realmKey() return plain(try(GetRealmName)) or "?" end
+-- the realm's name, else "realm:6946" while the game doesn't say it (put right once the name is known), else "?"
+local function realmKey() return (ns.realm()) or "?" end
 
 -- this realm's record: { fees = { [spell] = { fee, learn, side, at } }, ranks = { [skill] = { [step] = { fee, req, level, at } } },
 --   prices = { [item] = { price per unit, at } } }
@@ -271,7 +272,7 @@ app:Section("vendors", "Trainers and merchants", function(stack)
   local UI = LibStub("EverlookUI-1")
   UI.Header(stack, "Trainers and merchants", "What they really ask on your realm beats the data.")
   app:Widget(stack, "capture")
-  UI.Stat(stack, "Saved on " .. realmKey(), function()
+  UI.Stat(stack, "Saved on " .. (realmKey():gsub("^realm:", "realm ")), function()
     local f, k, p = counts()
     return ("%d recipe fees, %d rank fees, %d material prices"):format(f, k, p)
   end)
@@ -281,5 +282,8 @@ app:Section("vendors", "Trainers and merchants", function(stack)
       desc = "Forget the trainer fees and merchant prices saved on this realm; the addon's own data is used again after a /reload.",
       keywords = { "reset", "clear", "fees", "prices" } },
   })
+  if (ns.realmUnfixed or 0) > 0 then
+    UI.Note(stack, "Some fees and prices were saved while the game didn't say the realm, and this account has characters on more than one realm, so they can't be told apart. They are kept as they are and not used.")
+  end
   UI.Note(stack, "Fees and prices are saved only on this PC, in this addon's own saved variables. Learn skills a trainer showed are marked as known (no ~) in the planner.")
 end, { icon = "scroll" })

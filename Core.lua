@@ -33,32 +33,48 @@ ns.plain = plain
 local function realmKey(s) return type(s) == "string" and (s:gsub("[%s%-']", ""):lower()) or nil end
 ns.realmKey = realmKey
 
--- The realms whose characters can mail you: yours and, on connected realms, the others in its group (the game's
--- GetAutoCompleteRealms, when it has it). nil while the game hasn't said which realm you are on.
+-- The realm you are on: key (its name, else "realm:6946"), name (nil while unknown), id. Realm.lua reads it (the game's
+-- name, else the name saved for the realm ID in EverlookCraftDB.realmNames, else the ID from your GUID).
+function ns.realm()
+  local db = EverlookCraftDB
+  if db and type(db.realmNames) ~= "table" then db.realmNames = {} end
+  return ns.Realm.read(db and db.realmNames)
+end
+function ns.realmName() local _, name = ns.realm(); return name end
+
+-- The realms whose characters can mail you: { names = { [realmKey] = true }, id = realm ID, named = your realm's name is
+-- known }: yours and, on connected realms, the others in its group (the game's GetAutoCompleteRealms, when it has it).
+-- nil while neither the game nor your GUID says which realm you are on.
 local realmsFor, realmsSet
 function ns.mailRealms()
-  local name = plain(try(GetRealmName))
-  local here = realmKey(name)
-  if not here or here == "" then return nil end
-  if realmsFor == name then return realmsSet end
-  local set = { [here] = true }
+  local _, name, id = ns.realm()
+  if not name and not id then return nil end
+  local tag = tostring(name) .. "#" .. tostring(id)
+  if realmsFor == tag then return realmsSet end
+  local set = { names = {}, id = id, named = name ~= nil }
+  if name then set.names[realmKey(name)] = true end
   local list = try(GetAutoCompleteRealms)
   if type(list) == "table" then
     for _, r in ipairs(list) do
       local k = realmKey(plain(r))
-      if k and k ~= "" then set[k] = true end
+      if k and k ~= "" then set.names[k] = true end
     end
   end
-  realmsFor, realmsSet = name, set
+  realmsFor, realmsSet = tag, set
   return set
 end
 
--- Can character record c send you things by mail (same or connected realm)? A record without a realm, or before the
--- game names yours, counts: that is how it was before realms were saved.
+-- Can character record c send you things by mail (same or connected realm)? By realm name when both are known, else
+-- by realm ID (from the character's GUID). A record that names no realm, or before anything names yours, counts: that
+-- is how it was before realms were saved.
 function ns.sameRealm(c, realms)
   realms = realms or ns.mailRealms()
-  if not realms or not c or not c.realm then return true end
-  return realms[realmKey(c.realm)] or false
+  if not realms or not c then return true end
+  local name = not ns.Realm.blank(c.realm) and c.realm or nil
+  local id = type(c.realmID) == "number" and c.realmID > 0 and c.realmID or nil
+  if realms.named and name then return realms.names[realmKey(name)] or false end
+  if realms.id and id then return id == realms.id or (name ~= nil and realms.names[realmKey(name)]) or false end
+  return true
 end
 
 -- Can this character mail you things? Same realm (or a connected one) and the same faction: mail doesn't cross
@@ -145,12 +161,107 @@ function ns.me()
     db.chars[id] = c
   end
   c.name = plain(try(UnitName, "player")) or c.name
-  c.realm = plain(try(GetRealmName)) or c.realm
+  local _, realm, realmID = ns.realm()
+  if realm then c.realm = realm elseif ns.Realm.blank(c.realm) then c.realm = nil end
+  c.realmID = realmID or c.realmID
   c.side = ns.faction() or c.side   -- saved only when the game knows it (a guess would hide an alt's materials)
   local _, class = try(UnitClass, "player")
   c.class = plain(class) or c.class
   c.level = plain(try(UnitLevel, "player")) or c.level
   return c
+end
+
+---------------------------------------------------------------------------------------------------------------------
+-- Data saved while the game didn't say the realm (v0.2.0 and older on client build 71037 saved every character with
+-- realm "" and the trainer and merchant prices under the realm ""). At load and login, put right what is certain:
+--   - each character's realm ID comes from its GUID (the key of EverlookCraftDB.chars); realm "" is dropped;
+--   - a realm ID's name: the game's, else characters that saved both (when they agree), else, when every character
+--     on this account is on one realm ID and everything saved names one realm, that one;
+--   - prices saved under "" or "?" go to that realm when every character is on one realm ID (else they stay, and the
+--     Trainers and merchants page says so); prices under "realm:6946" go to its name once known. Different realms are
+--     never merged.
+
+-- keep the newer of two saved records (t[at] is when it was seen)
+local function keepNewer(dst, src, at)
+  for k, v in pairs(src or {}) do
+    local w = dst[k]
+    if type(v) == "table" and (type(w) ~= "table" or (tonumber(v[at]) or 0) > (tonumber(w[at]) or 0)) then dst[k] = v end
+  end
+end
+
+local function mergeCaptures(from, to)
+  to.fees, to.prices, to.ranks = to.fees or {}, to.prices or {}, to.ranks or {}
+  keepNewer(to.fees, from.fees, 4)
+  keepNewer(to.prices, from.prices, 2)
+  for skill, steps in pairs(from.ranks or {}) do
+    if type(steps) == "table" then
+      to.ranks[skill] = to.ranks[skill] or {}
+      keepNewer(to.ranks[skill], steps, 4)
+    end
+  end
+end
+
+ns.realmUnfixed = 0  -- saved price sets whose realm can't be told (the Trainers and merchants page says so)
+
+function ns.repairRealms()
+  local db = EverlookCraftDB
+  if type(db) ~= "table" or type(db.chars) ~= "table" then return end
+  local R = ns.Realm
+  if type(db.realmNames) ~= "table" then db.realmNames = {} end
+  local names = db.realmNames
+  ns.realm()   -- the game's name for this ID, when it says one
+  local ids, nIDs, onlyID = {}, 0, nil
+  for guid, c in pairs(db.chars) do
+    if type(c) == "table" then
+      if R.blank(c.realm) then c.realm = nil end
+      if not (type(c.realmID) == "number" and c.realmID > 0) then c.realmID = R.idOf(guid) end
+      if c.realmID and not ids[c.realmID] then ids[c.realmID], nIDs, onlyID = true, nIDs + 1, c.realmID end
+    end
+  end
+  local here = R.id()
+  if here and not ids[here] then nIDs, onlyID = nIDs + 1, here end
+  -- a realm ID's name from characters that saved both
+  local byID = {}
+  for _, c in pairs(db.chars) do
+    if type(c) == "table" and c.realm and c.realmID then
+      local n = byID[c.realmID]
+      if n == nil then byID[c.realmID] = c.realm elseif n ~= c.realm then byID[c.realmID] = false end
+    end
+  end
+  for id, n in pairs(byID) do if n and not R.text(names[id]) then names[id] = n end end
+  -- one realm ID on the whole account, and one realm name in everything saved: that is its name
+  if nIDs == 1 and not R.text(names[onlyID]) then
+    local named, nNames, only = {}, 0, nil
+    local function see(n) if not R.blank(n) and not named[n] then named[n], nNames, only = true, nNames + 1, n end end
+    for k in pairs(type(db.realms) == "table" and db.realms or {}) do see(k) end
+    for _, c in pairs(db.chars) do if type(c) == "table" then see(c.realm) end end
+    for id, n in pairs(names) do if id ~= onlyID then see(n) end end
+    if nNames == 1 then names[onlyID] = only end
+  end
+  for _, c in pairs(db.chars) do
+    if type(c) == "table" and not c.realm and c.realmID and R.text(names[c.realmID]) then c.realm = names[c.realmID] end
+  end
+  -- trainer and merchant prices saved without their realm's name
+  ns.realmUnfixed = 0
+  if type(db.realms) ~= "table" then return end
+  local moves = {}
+  for k, rec in pairs(db.realms) do
+    if type(rec) == "table" then
+      local id = R.keyID(k)
+      local to
+      if id then to = R.text(names[id])
+      elseif R.blank(k) then
+        if nIDs == 1 then to = R.text(names[onlyID]) or R.idKey(onlyID) end
+        if not to then ns.realmUnfixed = ns.realmUnfixed + 1 end
+      end
+      if to and to ~= k then moves[#moves + 1] = { from = k, to = to } end
+    end
+  end
+  for _, m in ipairs(moves) do
+    local from = db.realms[m.from]
+    db.realms[m.from] = nil
+    if type(db.realms[m.to]) == "table" then mergeCaptures(from, db.realms[m.to]) else db.realms[m.to] = from end
+  end
 end
 
 ---------------------------------------------------------------------------------------------------------------------
@@ -316,7 +427,10 @@ end)
 ns.on("ADDON_LOADED", function(_, name)
   if name ~= ADDON then return end
   ns.initDB()
+  ns.repairRealms()
   if ns.onLoaded then for _, fn in ipairs(ns.onLoaded) do fn() end end
 end)
+-- the realm is surely known (by GUID at least) once the character is in the world
+ns.on("PLAYER_LOGIN", function() ns.repairRealms() end)
 ns.onLoaded = {}
 function ns.whenLoaded(fn) table.insert(ns.onLoaded, fn) end

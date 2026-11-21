@@ -489,7 +489,8 @@ app:Section("characters", "Characters", function(stack)
     items = charRows,
     title = function(e)
       local c = e.c
-      return ("%s%s|r  |cff8d94a3%s \194\183 %s|r"):format(e.guid == ns.guid() and "|cffffd100" or "|cffffffff", c.name or "?", c.realm or "?",
+      return ("%s%s|r  |cff8d94a3%s \194\183 %s|r"):format(e.guid == ns.guid() and "|cffffd100" or "|cffffffff", c.name or "?",
+        c.realm or (c.realmID and ("realm " .. c.realmID)) or "?",
         c.side == "h" and "Horde" or "Alliance")
     end,
     detail = function(e)

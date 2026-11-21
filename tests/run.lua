@@ -418,6 +418,85 @@ step("stock: your characters on the other faction don't count (mail can't cross 
   EverlookCraftDB.chars["Player-1-Horde"] = nil
 end)
 
+step("realm on client build 71037: GetRealmName \"\" and GetRealmID 0, the realm ID from the GUID", function()
+  local realName, realID = GetRealmName, GetRealmID
+  GetRealmName = function() return "" end
+  GetRealmID = function() return 0 end
+  local db = EverlookCraftDB
+  local savedChars, savedRealms, savedNames = db.chars, db.realms, db.realmNames
+  db.chars, db.realms, db.realmNames = {}, {}, {}
+  -- nothing saved names realm 1: the ID-only key, and no name is guessed
+  local key, name, id = ns.realm()
+  eq(key, "realm:1", "ID-only key"); eq(name, nil, "no name"); eq(id, 1, "ID from the GUID")
+  local me = ns.me()
+  eq(me.realm, nil, "no empty realm saved"); eq(me.realmID, 1, "realm ID saved")
+  -- same realm by ID: an alt on realm 1 counts, one on realm 2 doesn't
+  me.bags, me.bank = { [2589] = 20 }, {}
+  db.chars["Player-1-Alt"] = { name = "Alt", realm = "Mock Realm", realmID = 1, side = "a", profs = {}, bags = { [2589] = 7 }, bank = {} }
+  db.chars["Player-2-Far"] = { name = "Far", realmID = 2, side = "a", profs = {}, bags = { [2589] = 100 }, bank = {} }
+  eq(ns.stock.have(2589).alts, 7, "other realm ID left out, same ID counted")
+  -- the name saved for this ID is used, and a trainer price is saved under it
+  db.realmNames[1] = "Mock Realm"
+  eq((ns.realm()), "Mock Realm", "saved name for the ID")
+  eq(ns.realmName(), "Mock Realm", "realmName")
+  GetRealmName, GetRealmID = realName, realID
+  db.chars, db.realms, db.realmNames = savedChars, savedRealms, savedNames
+end)
+
+step("realm repair: characters and prices saved with realm \"\" get this realm when certain, never another's", function()
+  local realName, realID = GetRealmName, GetRealmID
+  GetRealmName = function() return "" end
+  GetRealmID = function() return 0 end
+  local db = EverlookCraftDB
+  local savedChars, savedRealms, savedNames = db.chars, db.realms, db.realmNames
+  -- the user's own file after build 71037: every character realm "", prices under "" and under the old name
+  db.chars = {
+    ["Player-1-Tester"] = { name = "Tester", realm = "", side = "a", profs = {}, bags = {}, bank = {} },
+    ["Player-1-Miy"] = { name = "Miy", realm = "", side = "a", profs = {}, bags = { [2589] = 4 }, bank = {} },
+  }
+  db.realms = {
+    [""] = { fees = { [2665] = { 100, 40, "a", 200 }, [3319] = { 50, 20, "a", 200 } }, ranks = { [185] = { [3] = { 4500, 125, 20, 200 } } }, prices = { [2678] = { 4, 200 } } },
+    ["Mock Realm"] = { fees = { [13485] = { 1500, 130, "a", 100 }, [2665] = { 90, 35, "a", 100 } }, ranks = {}, prices = {} },
+  }
+  db.realmNames = nil
+  ns.repairRealms()
+  eq(db.chars["Player-1-Miy"].realmID, 1, "realm ID from the GUID key")
+  eq(db.chars["Player-1-Miy"].realm, "Mock Realm", "the one realm this account knows")
+  eq(db.realmNames[1], "Mock Realm", "name remembered for the ID")
+  check(db.realms[""] == nil, "the nameless prices left behind")
+  local r = db.realms["Mock Realm"]
+  eq(r.fees[2665][1], 100, "the newer fee kept"); eq(r.fees[13485][1], 1500, "the older realm's own fee kept")
+  eq(r.ranks[185][3][1], 4500, "rank fee moved"); eq(r.prices[2678][1], 4, "price moved")
+  eq(ns.realmUnfixed, 0, "nothing left unplaced")
+  eq((ns.realm()), "Mock Realm", "this realm named again")
+  eq(ns.capture.price(2678), 4, "the moved price is used")
+  -- two realm IDs on the account: nothing is moved or named, and it is counted for the settings page
+  db.chars = {
+    ["Player-1-Tester"] = { name = "Tester", realm = "", side = "a", profs = {}, bags = {}, bank = {} },
+    ["Player-2-Far"] = { name = "Far", realm = "", side = "a", profs = {}, bags = {}, bank = {} },
+  }
+  db.realms = { [""] = { fees = { [2665] = { 100, 40, "a", 200 } }, ranks = {}, prices = {} }, ["Mock Realm"] = { fees = {}, ranks = {}, prices = {} } }
+  db.realmNames = {}
+  ns.repairRealms()
+  eq(db.chars["Player-1-Tester"].realm, nil, "no name guessed with two realms")
+  eq(db.chars["Player-2-Far"].realmID, 2, "the other character's own realm ID")
+  check(db.realms[""] ~= nil, "prices of an unknown realm left as they are")
+  eq(ns.realmUnfixed, 1, "counted as unplaced")
+  eq(db.realmNames[1], nil, "no name for realm 1")
+  -- an ID-only key goes to the name once the game says it again; a character that saved both teaches the name
+  db.chars = { ["Player-1-Tester"] = { name = "Tester", realm = "Mock Realm", realmID = 1, side = "a", profs = {}, bags = {}, bank = {} },
+    ["Player-2-Far"] = { name = "Far", side = "a", profs = {}, bags = {}, bank = {} } }
+  db.realms = { ["realm:1"] = { fees = { [2665] = { 100, 40, "a", 200 } }, ranks = {}, prices = {} } }
+  db.realmNames = {}
+  ns.repairRealms()
+  eq(db.realmNames[1], "Mock Realm", "name from a character that saved both")
+  check(db.realms["realm:1"] == nil and db.realms["Mock Realm"].fees[2665], "ID-only prices moved to the name")
+  eq(db.chars["Player-2-Far"].realm, nil, "the other realm's character not named")
+  GetRealmName, GetRealmID = realName, realID
+  db.chars, db.realms, db.realmNames = savedChars, savedRealms, savedNames
+  ns.repairRealms()
+end)
+
 step("a kept route: reused until the target or a switch changes", function()
   local route = ns.plans.calculate(197, 200)
   check(route and #route.steps > 0, "no route")
