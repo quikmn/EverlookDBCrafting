@@ -31,6 +31,7 @@ CraftListWindow.lua
 FavorWindow.lua
 BrowserWindow.lua
 Tooltips.lua
+ProfessionColors.lua
 Guild.lua
 Capture.lua
 Merchant.lua

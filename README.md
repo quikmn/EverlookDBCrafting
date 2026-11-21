@@ -21,6 +21,11 @@ Level your professions the cheap and reliable way on WoW Forever. `/ecraft` (als
 - **Prices** from EverlookDB Auctions' scans when it is installed, else Auctionator's. Vendor goods cost what a
   merchant last showed you, else what WoW Forever's vendors charge. A material with no price shows "?" and is never
   guessed in a total.
+- **Profession window colours** (formerly the CraftColors addon). Each recipe name in its skill-up colour (your own
+  shades if you like), and after it the chance that one craft raises your skill ("37%", yellow and green recipes) and
+  how many your bags make ("(4)", or "(4 +5)" with your bank and other characters). Works in the older-style trade
+  skill and craft windows too. Your CraftColors settings are carried over; with CraftColors still enabled only one of
+  the two draws, and you can disable CraftColors.
 - **Profession scanner.** Opening a profession window saves your skill and recipes. Someone else's (a linked or guild
   profession) is never saved as yours. Where the window shows other reagents than the game files (the server changed
   a recipe), the window's version is used everywhere.
@@ -32,6 +37,7 @@ Level your professions the cheap and reliable way on WoW Forever. `/ecraft` (als
 | `/ecraft` | the window (planner, characters, prices, guide settings); search finds any setting |
 | `/ecraft plan [profession]` | the planner, e.g. `/ecraft plan tailoring` |
 | `/ecraft guide` | open or close the guide |
+| `/ecraft colors [on \| off]` | the profession window colours: their page, or switch them on or off |
 | `/ecraft status` | what the addon knows: characters, professions, routes, price source |
 | `/ecraft <setting> <value>` | change a setting, e.g. `/ecraft noalts on` |
 | `/ecraft help` | all commands |
@@ -43,7 +49,8 @@ Character names and what they carry are kept only on your PC, in this addon's ow
 
 ## For other addons
 
-`EverlookCraftAPI` (read-only): `recipe(spell)`, `chance(spell, skill)`, `stock(item)`, `knownBy(spell)`. See `API.lua`.
+`EverlookCraftAPI` (read-only): `recipe(spell)`, `chance(spell, skill)`, `stock(item)`, `knownBy(spell)`,
+`guildKnows(spell)`, `professionColors()`. See `API.lua`.
 
 ## Data and credits
 

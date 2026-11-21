@@ -1,4 +1,4 @@
--- EverlookDB Crafting: a small read-only API for other addons (CraftColors, EverlookDB Auctions).
+-- EverlookDB Crafting: a small read-only API for other addons (EverlookDB Auctions, CraftColors).
 --
 --   local api = EverlookCraftAPI
 --   if api and api.version >= 1 then
@@ -15,11 +15,13 @@
 --   api.knownBy(spell)   how many of your characters know the recipe (a number; names stay in this addon)
 --   api.guildKnows(spell) (v2) { name, ... }: guild members who told this session (guild sharing) that they know the
 --                        recipe, sorted; empty when sharing is off. In memory only: never saved anywhere
+--   api.professionColors() (v3) true when this addon colours the profession window's recipe names (the module that
+--                        was CraftColors): CraftColors v0.6.0+ then stands down, so only one draws
 --
 -- Every call reads what is already saved: nothing is sent anywhere, and the tables returned are copies.
 local _, ns = ...
 
-local api = { version = 2 }
+local api = { version = 3 }
 
 function api.recipe(spell)
   local r = type(spell) == "number" and ns.recipeBySpell(spell)
@@ -52,6 +54,10 @@ function api.guildKnows(spell)
   local out = {}
   for i, n in ipairs(ns.guild.knows(spell)) do out[i] = n end
   return out
+end
+
+function api.professionColors()
+  return ns.profColors ~= nil and ns.profColors.active() and true or false
 end
 
 -- Read-only: writes to the table are refused, so one addon can't break it for another.

@@ -258,7 +258,7 @@ step("guild: a member's lists are put together from their parts; who knows a rec
   eq(who[1], "Anna", "short name")
   local api = EverlookCraftAPI.guildKnows(2963)
   eq(api[1], "Anna", "api.guildKnows")
-  eq(EverlookCraftAPI.version, 2, "api version")
+  eq(EverlookCraftAPI.version, 3, "api version")
   check(has(tip(BOLT, false), "^Guild can make this"), "guild line on the crafted item")
 end)
 
