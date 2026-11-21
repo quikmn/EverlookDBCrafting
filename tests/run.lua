@@ -360,6 +360,39 @@ step("stock: bags, bank and other characters; 'don't count my alts' leaves their
   EverlookCraftDB.settings.noAlts = false
 end)
 
+step("stock: characters on another realm don't count (mail can't cross realms); connected realms do", function()
+  local me = ns.me()
+  me.bags = { [2589] = 20 }
+  me.bank = { [2589] = 5 }
+  EverlookCraftDB.chars["Player-1-Alt"] = { name = "Alt", realm = "Mock Realm", profs = {}, bags = { [2589] = 7 }, bank = {} }
+  EverlookCraftDB.chars["Player-2-Far"] = { name = "Faraway", realm = "Other Realm", profs = {}, bags = { [2589] = 100 },
+    bank = { [2589] = 50 } }
+  local h = ns.stock.have(2589)
+  eq(h.alts, 7, "another realm's character counted")
+  eq(#h.byChar, 1, "another realm's character listed")
+  eq(ns.stock.usable(2589), 32, "usable")
+  eq(ns.stock.owned()[2589], 32, "the planner's stock")
+  eq(EverlookCraftAPI.stock(2589).alts, 7, "API stock")
+  -- connected realms: the game's GetAutoCompleteRealms names the group ("OtherRealm", no spaces)
+  local realName, realAuto = GetRealmName, GetAutoCompleteRealms
+  GetRealmName = function() return "Mock Realm Two" end
+  GetAutoCompleteRealms = function() return { "MockRealmTwo", "OtherRealm" } end
+  me.realm = "Mock Realm Two"
+  eq(ns.stock.have(2589).alts, 150, "a connected realm's character left out")
+  eq(ns.stock.usable(2589), 175, "connected realm usable")
+  -- a game without the function (or one that errors): your own realm only
+  GetRealmName = function() return "Third Realm" end
+  GetAutoCompleteRealms = function() error("no") end
+  me.realm = "Third Realm"
+  eq(ns.stock.have(2589).alts, 0, "other realms counted without the connected list")
+  GetRealmName, GetAutoCompleteRealms = realName, realAuto
+  me.realm = "Mock Realm"
+  -- a character saved before realms were (no realm) still counts
+  EverlookCraftDB.chars["Player-2-Far"].realm = nil
+  eq(ns.stock.have(2589).alts, 157, "a character without a realm")
+  EverlookCraftDB.chars["Player-2-Far"] = nil
+end)
+
 step("a kept route: reused until the target or a switch changes", function()
   local route = ns.plans.calculate(197, 200)
   check(route and #route.steps > 0, "no route")

@@ -50,16 +50,17 @@ function St.readBank()
   if ns.onStock then ns.onStock() end
 end
 
--- How many of an item: { bags, bank (this character), alts (all others), byChar = { { name, n } } }.
+-- How many of an item: { bags, bank (this character), alts (your others on this realm or a connected one: mail
+-- can't cross realms, so other realms' characters don't count), byChar = { { name, n } } }.
 function St.have(id)
   local db = EverlookCraftDB
-  local guid = ns.guid()
+  local guid, realms = ns.guid(), ns.mailRealms()
   local res = { bags = 0, bank = 0, alts = 0, byChar = {} }
   for g, c in pairs(db and db.chars or {}) do
     local b, k = (c.bags or {})[id] or 0, (c.bank or {})[id] or 0
     if g == guid then
       res.bags, res.bank = b, k
-    elseif b + k > 0 then
+    elseif b + k > 0 and ns.sameRealm(c, realms) then
       res.alts = res.alts + b + k
       res.byChar[#res.byChar + 1] = { name = c.name or "?", n = b + k }
     end
@@ -74,12 +75,12 @@ function St.usable(id)
   return h.bags + h.bank + (ns.settings().noAlts and 0 or h.alts)
 end
 
--- every item you have, for the planner: { [id] = n }
+-- every item you have, for the planner: { [id] = n } (your alts on this realm or a connected one, as St.have)
 function St.owned()
   local out = {}
-  local guid, noAlts = ns.guid(), ns.settings().noAlts
+  local guid, noAlts, realms = ns.guid(), ns.settings().noAlts, ns.mailRealms()
   for g, c in pairs(EverlookCraftDB and EverlookCraftDB.chars or {}) do
-    if g == guid or not noAlts then
+    if g == guid or (not noAlts and ns.sameRealm(c, realms)) then
       for _, t in ipairs({ c.bags or {}, c.bank or {} }) do
         for id, n in pairs(t) do out[id] = (out[id] or 0) + n end
       end

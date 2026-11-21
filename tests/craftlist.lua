@@ -122,6 +122,21 @@ step("'don't count my alts' leaves the alt's bolts out", function()
   EverlookCraftDB.settings.noAlts = false
 end)
 
+step("an alt on another realm: its bolts can't be mailed, so they don't count and it isn't named", function()
+  local alt = EverlookCraftDB.chars["Player-1-Alt"]
+  alt.realm = "Other Realm"
+  local t = L.tree()
+  local bolt = t.roots[1].kids[1].id == BOLT and t.roots[1].kids[1] or t.roots[1].kids[2]
+  eq(bolt.have, 0, "another realm's bolts counted")
+  check(not L.whereText(BOLT):find("Bankalt", 1, true), "another realm's alt named: " .. L.whereText(BOLT))
+  alt.realm = "Mock Realm"
+  t = L.tree()
+  bolt = t.roots[1].kids[1].id == BOLT and t.roots[1].kids[1] or t.roots[1].kids[2]
+  check(bolt.have > 0, "an alt on your realm counts")
+  check(L.whereText(BOLT):find("2 on Bankalt", 1, true), "where: " .. L.whereText(BOLT))
+  alt.realm = nil
+end)
+
 step("craft or buy: a ticked material is bought, not broken down", function()
   L.setMode(BOLT, "buy")
   local t = L.tree()

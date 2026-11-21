@@ -58,7 +58,6 @@ function TT.resetIndex() index = nil end
 ---------------------------------------------------------------------------------------------------------------------
 -- Pure parts (tested): what each line says
 
-local function realm() return ns.plain(ns.try(GetRealmName)) end
 
 -- Does recipe r use item id (with the server's reagents where a window showed them)?
 local function uses(r, id)
@@ -66,11 +65,11 @@ local function uses(r, id)
   return false
 end
 
--- your characters (this realm when known), the current one first: { { guid, c, me } }
+-- your characters (this realm or a connected one, when known), the current one first: { { guid, c, me } }
 function TT.characters(sameRealm)
-  local out, me, here = {}, ns.guid(), realm()
+  local out, me, realms = {}, ns.guid(), ns.mailRealms()
   for g, c in pairs(EverlookCraftDB and EverlookCraftDB.chars or {}) do
-    if not sameRealm or not here or not c.realm or c.realm == here then
+    if not sameRealm or ns.sameRealm(c, realms) then
       out[#out + 1] = { guid = g, c = c, me = g == me }
     end
   end

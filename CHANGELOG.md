@@ -1,6 +1,7 @@
 # EverlookDB Crafting
 
 ## Unreleased
+- Materials on your characters on other realms no longer count as yours: mail can't cross realms. The planner, the Crafting list ("6 on Bankalt"), Merchant's Favor and the "(4 +5)" count in the profession window now count only characters on your realm (or a connected one), the same as the tooltips.
 - Merchant's Favor: a crate's Shopping list never puts on what you already have (the crate, the bundle, its materials), also with "My bags free" off. A crate with nothing to buy has its Shopping list button greyed out (it looked clickable), and a row with no priced bundle says why once instead of twice.
 - Merchant's Favor: below level 10 the empty list says crates open at level 10 and how to see them anyway. The ranking updates after you open a profession window (a new recipe can make a bundle cheaper to craft).
 - Crafting list: "Send missing to Auctions" waits for item names the game hasn't loaded yet and tries again by itself, without the "couldn't send the list: loading" message.

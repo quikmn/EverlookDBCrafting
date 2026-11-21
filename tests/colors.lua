@@ -276,6 +276,9 @@ step("after the name: skill-up chance (this addon's formula) and how many you ca
   local me = ns.me()
   me.bags, me.bank = { [BOLT] = 9, [THREAD] = 2 }, { [BOLT] = 4, [THREAD] = 6 }
   EverlookCraftDB.chars["Player-alt"] = { name = "Alt", realm = "Mock Realm", side = "a", profs = {}, bags = { [BOLT] = 20 }, bank = {} }
+  -- a character on another realm can't mail you anything: never in the count
+  EverlookCraftDB.chars["Player-far"] = { name = "Far", realm = "Other Realm", side = "a", profs = {},
+    bags = { [BOLT] = 99, [THREAD] = 99 }, bank = {} }
   local skill, linked = 60, false
   C_TradeSkillUI = {
     GetBaseProfessionInfo = function() return { skillLevel = skill } end,
@@ -358,6 +361,7 @@ step("after the name: skill-up chance (this addon's formula) and how many you ca
   DB().enabled = true
   C_TradeSkillUI = nil
   EverlookCraftDB.chars["Player-alt"] = nil
+  EverlookCraftDB.chars["Player-far"] = nil
   C_Item.GetItemCount = oldCount
 end)
 

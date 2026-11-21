@@ -29,6 +29,38 @@ local function plain(v)
 end
 ns.plain = plain
 
+-- Realm names compared the way "Name-Realm" writes them: no spaces, hyphens or apostrophes, any case.
+local function realmKey(s) return type(s) == "string" and (s:gsub("[%s%-']", ""):lower()) or nil end
+ns.realmKey = realmKey
+
+-- The realms whose characters can mail you: yours and, on connected realms, the others in its group (the game's
+-- GetAutoCompleteRealms, when it has it). nil while the game hasn't said which realm you are on.
+local realmsFor, realmsSet
+function ns.mailRealms()
+  local name = plain(try(GetRealmName))
+  local here = realmKey(name)
+  if not here or here == "" then return nil end
+  if realmsFor == name then return realmsSet end
+  local set = { [here] = true }
+  local list = try(GetAutoCompleteRealms)
+  if type(list) == "table" then
+    for _, r in ipairs(list) do
+      local k = realmKey(plain(r))
+      if k and k ~= "" then set[k] = true end
+    end
+  end
+  realmsFor, realmsSet = name, set
+  return set
+end
+
+-- Can character record c send you things by mail (same or connected realm)? A record without a realm, or before the
+-- game names yours, counts: that is how it was before realms were saved.
+function ns.sameRealm(c, realms)
+  realms = realms or ns.mailRealms()
+  if not realms or not c or not c.realm then return true end
+  return realms[realmKey(c.realm)] or false
+end
+
 ns.DEFAULTS = {
   settings = {
     vendorPatterns = true,   -- recipes whose pattern a vendor sells (the site's main route has them too)

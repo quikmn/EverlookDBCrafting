@@ -34,8 +34,9 @@ Level your professions the cheap and reliable way on WoW Forever. `/ecraft` (als
   can make this" in tooltips). Guild channel only, throttled, names kept in memory only. Off in /ecraft > Guild.
 - **"Buy what the route needs"** under an open merchant that sells vendor materials your route still needs. The first
   click shows the price, the second buys, never more than needed.
-- **Your materials on every character.** Bags (and the reagent bag) and, from your last visit, the bank and reagent
-  bank of each character count as owned. "Don't count my alts' materials" leaves the others out.
+- **Your materials on every character of your realm.** Bags (and the reagent bag) and, from your last visit, the bank
+  and reagent bank of each character on your realm (or a connected one) count as owned; mail can't cross realms, so
+  characters elsewhere don't. "Don't count my alts' materials" leaves the others out.
 - **Prices** from EverlookDB Auctions' scans when it is installed, else Auctionator's. Vendor goods cost what a
   merchant last showed you, else what WoW Forever's vendors charge. A material with no price shows "?" and is never
   guessed in a total.
