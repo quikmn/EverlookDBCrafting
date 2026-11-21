@@ -68,9 +68,9 @@ setting("guide.lock", "guideLocked", "Lock the guide in place", "The guide windo
 setting("guide.auto", "autoGuide", "Open the guide with the profession window",
   "When you open a profession that has a route, its guide opens too.", { "automatic", "open", "show" })
 
-app:Setting({ key = "windows.scale", type = "number", label = "Crafting list and recipe browser size", min = 0.6, max = 1.6,
-  step = 0.05, fmt = "%.2f", desc = "How big the Crafting list and the recipe browser windows are.",
-  keywords = { "scale", "zoom", "size", "list", "browser", "recipes" }, default = 1,
+app:Setting({ key = "windows.scale", type = "number", label = "Window size", min = 0.6, max = 1.6,
+  step = 0.05, fmt = "%.2f", desc = "How big the Crafting list, the recipe browser and the Merchant's Favor windows are.",
+  keywords = { "scale", "zoom", "size", "list", "browser", "recipes", "favor", "crates", "window" }, default = 1,
   get = function() return S().windowScale end, set = function(v) S().windowScale = v end,
   after = function()
     if ns.listWindow then ns.listWindow.applyScale() end

@@ -309,9 +309,10 @@ end
 function M.checkText()
   local info = M.selectedRecipe()
   if not info then return "Open a profession and select a recipe first." end
+  local diff = plain(info.relativeDifficulty)
   return ("%s: relativeDifficulty=%s (%s)  numSkillUps=%s  canSkillUp=%s  list hooked=%s"):format(
-    UI.Util.Escape(tostring(info.name)), tostring(info.relativeDifficulty), NAMES[info.relativeDifficulty] or "?",
-    tostring(info.numSkillUps), tostring(info.canSkillUp), tostring(scrollBoxHooked))
+    UI.Util.Escape(tostring(plain(info.name))), tostring(diff), diff ~= nil and NAMES[diff] or "?",
+    tostring(plain(info.numSkillUps)), tostring(plain(info.canSkillUp)), tostring(scrollBoxHooked))
 end
 
 ---------------------------------------------------------------------------------------------------------------------

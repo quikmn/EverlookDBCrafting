@@ -107,4 +107,13 @@ ns.on("BANKFRAME_OPENED", function()
   C_Timer.After(0.5, St.readBank)
 end)
 ns.on("BANKFRAME_CLOSED", function() St.bankOpen = false end)
-ns.on("PLAYERBANKSLOTS_CHANGED", function() if St.bankOpen and EverlookCraftDB then St.readBank() end end)
+-- sorting the bank fires this once per slot: count it once things settle
+local bankPending = false
+ns.on("PLAYERBANKSLOTS_CHANGED", function()
+  if not St.bankOpen or not EverlookCraftDB or bankPending then return end
+  bankPending = true
+  C_Timer.After(0.5, function()
+    bankPending = false
+    if St.bankOpen then St.readBank() end
+  end)
+end)
