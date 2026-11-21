@@ -460,7 +460,9 @@ local prevSkills, prevStock, prevRoute = ns.onSkills, ns.onStock, ns.onRoute
 ns.onSkills = function() if prevSkills then prevSkills() end live() end
 ns.onStock = function() if prevStock then prevStock() end live() end
 ns.onRoute = function(skill) if prevRoute then prevRoute(skill) end G.skill = skill; live() end
+local prevScanned = ns.onScanned
 ns.onScanned = function(skill)
+  if prevScanned then prevScanned(skill) end
   if settings().autoGuide and ns.plans.saved(skill) and not (G.frame and G.frame:IsShown()) then G.open(skill) end
   live()
 end

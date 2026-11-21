@@ -222,6 +222,13 @@ step("/ecraft favor opens the window; the primary sends the picked crate's shopp
   ns.favorWindow.render()
   for _, r in ipairs(ns.favorWindow.rows) do eq(r.c.tier, 1, "tier chip") end
   EverlookCraftDB.settings.favorTier = 0
+  -- too low for any crate: the empty list says why and how to see them
+  UnitLevel = function() return 5 end
+  ns.favorWindow.render()
+  eq(#ns.favorWindow.rows, 0, "no crate at level 5")
+  check(ns.favorWindow.emptyText():find("open at level 10", 1, true), "empty text: " .. ns.favorWindow.emptyText())
+  UnitLevel = function() return 30 end
+  ns.favorWindow.render()
   SlashCmdList.EVERLOOKCRAFT("favor")
   check(not EverlookCraftFavor:IsShown(), "favor toggles")
   ns.app:Open("favor")

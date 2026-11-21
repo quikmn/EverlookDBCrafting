@@ -205,10 +205,24 @@ local function make()
   f.sortTotal:SetPoint("LEFT", f.sortPer, "RIGHT", 4, 0)
   f.list = ns.widgets.VList(f.body, T, ROW_H, buildRow, paintRow, 4, "No crate matches the filters.")
   f.list:SetAllPoints(f.body)
+  f.list.emptyFn = FW.emptyText
   f:SetPrimary("Send missing to Auctions", function() FW.primary() end, 190)
   f:SetScript("OnShow", function() FW.render() end)
   f:SetScript("OnSizeChanged", function() if f:IsShown() then f.list:Render() end end)
   return f
+end
+
+-- what an empty list says: too low a level for any crate, else the filters
+function FW.emptyText()
+  local lowest
+  for _, c in ipairs(ns.favor.crates()) do
+    if (S().favorTier or 0) == 0 or c.tier == S().favorTier then lowest = math.min(lowest or c.level, c.level) end
+  end
+  local level = ns.plain(ns.try(UnitLevel, "player"))
+  if S().favorMyLevel and lowest and level and level < lowest then
+    return ("No crate for your level yet: these open at level %d. Click \"My level\" to see them all."):format(lowest)
+  end
+  return "No crate matches the filters."
 end
 
 -- the crate the primary button acts on: the one you picked, else the best ranked
@@ -268,3 +282,6 @@ function FW.applyScale() if f then f:SetScale(ns.settings().windowScale or 1) en
 
 local prevStock = ns.onStock
 ns.onStock = function() if prevStock then prevStock() end FW.render() end
+-- a profession window read: new recipes can make a bundle cheaper to craft
+local prevScanned = ns.onScanned
+ns.onScanned = function(skill) if prevScanned then prevScanned(skill) end FW.render() end
