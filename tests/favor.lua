@@ -245,5 +245,23 @@ step("/ecraft favor opens the window; the primary sends the picked crate's shopp
   check(#MOCK.errors == 0, "errors: " .. tostring(MOCK.errors[1]))
 end)
 
+step("api (v4): the best crates for EverlookDB Auctions' main window, and opening the window", function()
+  local api = EverlookCraftAPI
+  check(api.version >= 4, "api version")
+  local best = api.favorBest(2)
+  check(#best >= 1 and #best <= 2, "at most two: " .. #best)
+  local ranked = {}
+  for _, r in ipairs(ns.favor.current()) do if r.perFavor and r.best then ranked[#ranked + 1] = r end end
+  eq(best[1].id, ranked[1].c.id, "the best first, as the window ranks them")
+  check(best[1].perFavorText:find("per Favor", 1, true), "per Favor text: " .. tostring(best[1].perFavorText))
+  check(best[1].fill:find("^fill: "), "what to fill it with: " .. tostring(best[1].fill))
+  check(best[1].name and best[1].favor and best[1].total, "name, Favor and total")
+  if EverlookCraftFavor then EverlookCraftFavor:Hide() end
+  api.openFavor()
+  check(EverlookCraftFavor and EverlookCraftFavor:IsShown(), "openFavor opens the Merchant's Favor window")
+  EverlookCraftFavor:Hide()
+  check(not pcall(function() api.favorBest = nil end), "still read-only")
+end)
+
 print(("%d passed, %d failed"):format(passes, #failures))
 return #failures

@@ -17,11 +17,16 @@
 --                        recipe, sorted; empty when sharing is off. In memory only: never saved anywhere
 --   api.professionColors() (v3) true when this addon colours the profession window's recipe names (the module that
 --                        was CraftColors): CraftColors v0.6.0+ then stands down, so only one draws
+--   api.favorBest(n)     (v4) the n (default 3) best Waylaid Crates for Merchant's Favor, as the Merchant's Favor
+--                        window ranks them with its saved filters: { { id, name, favor, total, perFavor,
+--                        perFavorText ("~1s 20c per Favor"), fill ("fill: 20 Peacebloom, auction house") } }; only
+--                        ranked crates (ones with a price and a known Favor)
+--   api.openFavor()      (v4) opens the Merchant's Favor window (EverlookDB Auctions' main window links to it)
 --
 -- Every call reads what is already saved: nothing is sent anywhere, and the tables returned are copies.
 local _, ns = ...
 
-local api = { version = 3 }
+local api = { version = 4 }
 
 function api.recipe(spell)
   local r = type(spell) == "number" and ns.recipeBySpell(spell)
@@ -58,6 +63,26 @@ end
 
 function api.professionColors()
   return ns.profColors ~= nil and ns.profColors.active() and true or false
+end
+
+function api.favorBest(n)
+  local F = ns.favor
+  if not F then return {} end
+  n = type(n) == "number" and n or 3
+  local out = {}
+  for _, res in ipairs(F.current()) do
+    if #out >= n then break end
+    if res.perFavor and res.best then
+      out[#out + 1] = { id = res.c.id, name = (ns.itemInfo(res.c.id)), favor = res.c.favor, total = res.total,
+        perFavor = res.perFavor, perFavorText = F.perFavorText(res),
+        fill = "fill: " .. F.optionName(res.best) .. ", " .. F.howText(res.best) }
+    end
+  end
+  return out
+end
+
+function api.openFavor()
+  if ns.favorWindow then ns.favorWindow.open() end
 end
 
 -- Read-only: writes to the table are refused, so one addon can't break it for another.

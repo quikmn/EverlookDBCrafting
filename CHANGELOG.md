@@ -1,6 +1,7 @@
 # EverlookDB Crafting
 
 ## Unreleased
+- EverlookDB Auctions' new Merchant's Favor page shows your three best Waylaid Crates (the same ranking as the Merchant's Favor window, with its filters) and opens the window from there. For addon authors: EverlookCraftAPI 4 adds favorBest(n) and openFavor().
 - Tooltips: one tidy look shared by every EverlookDB addon: brighter labels, values on the right, a blank line between the price and the crafting lines. The recipes a material is used in show in their colour at your skill (orange, yellow, green), without "Tailoring" repeated on every row; your characters' names are in their class colours; "Guild members who know it" is now "Known in your guild". On a Waylaid Crate the gold per Favor and the cheapest fill's cost sit in the price column.
 - New setting "Solid tooltip background" (on by default, Tooltips page), shared by every EverlookDB addon.
 

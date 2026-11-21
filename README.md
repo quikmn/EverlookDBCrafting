@@ -72,7 +72,7 @@ Character names and what they carry are kept only on your PC, in this addon's ow
 ## For other addons
 
 `EverlookCraftAPI` (read-only): `recipe(spell)`, `chance(spell, skill)`, `stock(item)`, `knownBy(spell)`,
-`guildKnows(spell)`, `professionColors()`. See `API.lua`.
+`guildKnows(spell)`, `professionColors()`, `favorBest(n)` (the best Waylaid Crates for Merchant's Favor), `openFavor()`. See `API.lua`.
 
 ## Data and credits
 
