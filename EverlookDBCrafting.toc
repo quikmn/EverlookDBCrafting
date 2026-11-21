@@ -1,6 +1,6 @@
 ## Interface: 16001
 ## Title: EverlookDB Crafting
-## Notes: Skill-up routes at today's prices, a live guide, and your materials on every character. /ecraft. Data: everlookdb.com (client data, classic-db GPL-3.0, EG Link CC BY 4.0). Names stay on your PC.
+## Notes: Skill-up routes at today's prices, a live guide, a crafting list and your materials on every character. /ecraft
 ## Author: quikmn
 ## Version: v0.2.1
 ## License: GPL-3.0-or-later
