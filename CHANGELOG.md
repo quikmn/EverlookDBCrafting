@@ -1,7 +1,7 @@
 # EverlookDB Crafting
 
 ## Unreleased
-- Merchant's Favor: a crate's Shopping list never puts on what you already have (the crate, the bundle, its materials), also with "My bags free" off. A crate with no priced bundle has no list to make, and its row says why once instead of twice.
+- Merchant's Favor: a crate's Shopping list never puts on what you already have (the crate, the bundle, its materials), also with "My bags free" off. A crate with nothing to buy has its Shopping list button greyed out (it looked clickable), and a row with no priced bundle says why once instead of twice.
 - Merchant's Favor: below level 10 the empty list says crates open at level 10 and how to see them anyway. The ranking updates after you open a profession window (a new recipe can make a bundle cheaper to craft).
 - Crafting list: "Send missing to Auctions" waits for item names the game hasn't loaded yet and tries again by itself, without the "couldn't send the list: loading" message.
 - "Buy what the route needs": clicking again after Cancel keeps the price up its full 8 seconds.
