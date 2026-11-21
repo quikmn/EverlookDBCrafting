@@ -155,7 +155,7 @@ local function paintRow(r, res, i)
   local canAdd = F().craftNeed(res) ~= nil
   r.add:SetShown(canAdd)
   local api = rawget(_G, "EverlookDBAuctionsAPI")
-  r.shop:SetEnabled(api ~= nil and (api.version or 0) >= 2 and #F().shoppingItems(res) > 0)
+  r.shop:SetUsable(api ~= nil and (api.version or 0) >= 2 and #F().shoppingItems(res) > 0)
   r:SetBase(T.surface)
   r:SetSelected(FW.selected == c.id)
 end

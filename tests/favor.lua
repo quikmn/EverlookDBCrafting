@@ -210,6 +210,14 @@ step("/ecraft favor opens the window; the primary sends the picked crate's shopp
   check(EverlookCraftFavor and EverlookCraftFavor:IsShown(), "window not shown")
   local top = ns.favorWindow.rows[1]
   check(top and top.perFavor, "a ranked crate first")
+  -- a row's Shopping list button looks greyed (not just unclickable) when there is nothing to buy
+  local list = EverlookCraftFavor.list
+  for _, r in ipairs(list.rows) do
+    if r:IsShown() and r.item then
+      local want = #F.shoppingItems(r.item) > 0 and 1 or 0.4
+      eq(r.shop:GetAlpha(), want, "shop button look for " .. r.item.c.id)
+    end
+  end
   sent = nil
   ns.favorWindow.primary()
   check(sent and sent.name:find("^Favor: ") ~= nil, "list sent under the crate's own name: " .. tostring(sent and sent.name))
