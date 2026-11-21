@@ -184,6 +184,12 @@ local function members()
   return n
 end
 
+local function partsCount()
+  local n = 0
+  for _ in pairs(parts) do n = n + 1 end
+  return n
+end
+
 function G.receive(prefix, msg, channel, sender)
   if prefix ~= G.PREFIX or channel ~= "GUILD" or not G.enabled() then return end
   msg, sender = plain(msg), plain(sender)
@@ -200,7 +206,8 @@ function G.receive(prefix, msg, channel, sender)
   if not skill or not ns.DATA or not ns.DATA.profs[skill] or i < 1 or n < 1 or i > n or n > 20 then return end
   local ids = G.decode(payload)
   if not ids then return end
-  if not heard[sender] and members() >= G.MAX_MEMBERS then return end
+  -- a cap on senders, half-sent lists included, so a flood can't grow memory
+  if not heard[sender] and not parts[sender] and members() + partsCount() >= G.MAX_MEMBERS then return end
   local bySender = parts[sender] or {}
   parts[sender] = bySender
   local p = bySender[skill]
@@ -209,6 +216,7 @@ function G.receive(prefix, msg, channel, sender)
   bySender[skill] = p
   if p.count < p.n then return end
   bySender[skill] = nil
+  if next(bySender) == nil then parts[sender] = nil end
   local set = {}
   for k = 1, p.n do for _, id in ipairs(p.got[k]) do set[id] = true end end
   local h = heard[sender] or { profs = {} }
@@ -239,6 +247,7 @@ function G.knows(spell)
 end
 
 function G.count() return members() end
+function G.partial() return partsCount() end
 
 function G.forget()
   heard, parts, queue, lastSent = {}, {}, {}, {}
