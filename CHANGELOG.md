@@ -1,6 +1,6 @@
 # EverlookDB Crafting
 
-## Unreleased
+## v0.5.0 (2026-11-22)
 - Skill-up planner: one shopping list for the whole route. Every material and pattern with have / need on your characters, what the rest costs and where to get it (auction house, the nearest vendor, or make it yourself). It ticks off as you buy.
 - "Send to auction house" puts what's left on a shopping list in EverlookDB Auctions, or Auctionator if you use that. The Crafting list can send to Auctionator now too.
 - Plan from any skill: "From skill" starts at your skill now, or wherever you set it.
