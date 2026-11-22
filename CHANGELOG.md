@@ -1,6 +1,6 @@
 # EverlookDB Crafting
 
-## Unreleased
+## v0.6.0 (2026-11-22)
 - Skill-up cards: "Hurray! Tailoring 151" at the top right whenever any profession or secondary skill rises (crafting, gathering, Fishing, Cooking, First Aid, Lockpicking, Poisons). A thin bar shows how far you are toward the rank's cap; a hint says the rank to train when you hit the cap, or the next step of your route ("next: Bolt of Silk Cloth x12"). Several skill-ups at once add up on one card (+3).
 - Fireworks every 25 points, at a rank's cap and at 300.
 - With EverlookDB Auctions the cards sit right under its loot cards, so they never cover each other.
