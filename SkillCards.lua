@@ -413,7 +413,7 @@ function K.fill(card)
   local e = card.e
   card.icon:SetTexture(K.icon(e.skill, e.name))
   local gain = e.rank - (e.from or e.rank - 1)
-  card.name:SetText(("Hurray! |cffffffff%s %d|r"):format(e.name, e.rank) .. (gain > 1 and ("  |cff62cf88+%d|r"):format(gain) or ""))
+  card.name:SetText(("Hurray! |cffffffff%s|r |cff62cf88%d|r  |cff62cf88+%d|r"):format(e.name, e.rank, math.max(gain, 1)))
   card.name:SetTextColor(GOLD[1], GOLD[2], GOLD[3])
   card.count:SetText(e.max and ("%d / %d"):format(e.rank, e.max) or "")
   local ok, hint, cap = pcall(K.hint, e)

@@ -130,13 +130,14 @@ step("a skill-up from the skill list, then the chat line of the same rank: one c
   eq(#K.cards, 1, "one card")
   local c = K.cards[1]
   check(c:IsShown(), "shown")
-  check(c.name:GetText():find("Hurray!", 1, true) and c.name:GetText():find("Tailoring 149", 1, true), "title: " .. c.name:GetText())
-  check(not c.name:GetText():find("+", 1, true), "no +N for one point")
+  local plain = function(t) return (t:gsub("|c%x%x%x%x%x%x%x%x", ""):gsub("|r", "")) end
+  check(plain(c.name:GetText()):find("Hurray! Tailoring 149  +1", 1, true), "title: " .. c.name:GetText())
+  check(c.name:GetText():find("|cff62cf88149|r", 1, true), "the level in green")
   eq(c.count:GetText(), "149 / 225", "rank and cap")
   check(c.barBg:IsShown(), "bar")
   chat("Tailoring", 149)
   eq(#K.cards, 1, "the chat line of the same rank adds nothing")
-  check(not c.name:GetText():find("+", 1, true), "still no +N")
+  check(c.name:GetText():find("+1", 1, true), "still +1")
 end)
 
 step("more while the card is up: merged, +N, stays up", function()
@@ -147,7 +148,7 @@ step("more while the card is up: merged, +N, stays up", function()
   chat("Tailoring", 151)
   MOCK.Fire("SKILL_LINES_CHANGED")
   eq(#K.cards, 1, "one card for all of them")
-  check(c.name:GetText():find("Tailoring 151", 1, true) and c.name:GetText():find("+3", 1, true), "merged: " .. c.name:GetText())
+  check(c.name:GetText():find("|cff62cf88151|r", 1, true) and c.name:GetText():find("+3", 1, true), "merged: " .. c.name:GetText())
   check(c.age <= 0.2, "stays another 5 seconds")
   -- a card that is fading: a new one
   c.age = 5.3
