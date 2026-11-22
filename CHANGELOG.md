@@ -1,6 +1,6 @@
 # EverlookDB Crafting
 
-## Unreleased
+## v0.6.1 (2026-11-22)
 - Skill-up cards: the new skill in green, and +1 (or +N) on every card.
 
 ## v0.6.0 (2026-11-22)
