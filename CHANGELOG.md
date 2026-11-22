@@ -1,6 +1,6 @@
 # EverlookDB Crafting
 
-## Unreleased
+## v0.4.0 (2026-11-22)
 - More Merchant's Favor recipes now show where to buy them and are used in the leveling routes.
 - EverlookDB Auctions' Crafting profit page can now include the recipes your alts know.
 
