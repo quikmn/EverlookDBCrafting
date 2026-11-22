@@ -177,6 +177,7 @@ function K.readList()
 end
 
 local snap, ready = {}, false
+K.JUMP = 5   -- the most points one craft or gather can give
 K.snap = snap
 
 ---------------------------------------------------------------------------------------------------------------------
@@ -483,7 +484,11 @@ function K.rose(name, rank, cur)
   local max = cur and cur.max or (prev and prev.max)
   local header = cur and cur.header or (prev and prev.header)
   snap[name] = { rank = rank, max = max, header = header }
-  return K.show({ name = name, rank = rank, from = prev and prev.rank or nil, max = max, header = header })
+  -- a jump of more than JUMP points is not a skill-up we saw happen (the list was read stale at login, or the skill
+  -- rose while it couldn't be read): count it as one point, no milestone fireworks for the points in between
+  local from = prev and prev.rank or nil
+  if from and rank - from > K.JUMP then from = rank - 1 end
+  return K.show({ name = name, rank = rank, from = from, max = max, header = header })
 end
 
 -- the skill list changed: anything higher than before gets its card (the first read only remembers)

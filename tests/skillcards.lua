@@ -165,6 +165,16 @@ step("more while the card is up: merged, +N, stays up", function()
   clear()
 end)
 
+step("a jump the addon didn't see happen (stale list at login): +1, no milestone fireworks", function()
+  clear()
+  K.snap["Alchemy"] = { rank = 10, max = 75, header = "Professions" }
+  chat("Alchemy", 53)
+  local c = K.cards[1]
+  check(c and c.name:GetText():find("+1", 1, true) and not c.name:GetText():find("+43", 1, true), "title: " .. (c and c.name:GetText() or "no card"))
+  check(not K.milestone(c.e.from, c.e.rank, c.e.max), "no fireworks for 10 -> 53")
+  clear()
+end)
+
 step("the card fades and goes after 5 seconds", function()
   chat("Fishing", 3)
   local c = K.cards[1]

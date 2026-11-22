@@ -1,5 +1,8 @@
 # EverlookDB Crafting
 
+## Unreleased
+- Skill-up cards: no more "+43" and fireworks after logging in; a jump the addon didn't see happen counts as one point.
+
 ## v0.6.1 (2026-11-22)
 - Skill-up cards: the new skill in green, and +1 (or +N) on every card.
 
