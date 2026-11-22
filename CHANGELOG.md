@@ -1,5 +1,17 @@
 # EverlookDB Crafting
 
+## Unreleased
+- Skill-up planner: one shopping list for the whole route. Every material and pattern with have / need on your characters, what the rest costs and where to get it (auction house, the nearest vendor, or make it yourself). It ticks off as you buy.
+- "Send to auction house" puts what's left on a shopping list in EverlookDB Auctions, or Auctionator if you use that. The Crafting list can send to Auctionator now too.
+- Plan from any skill: "From skill" starts at your skill now, or wherever you set it.
+- The safety margin is smarter: enough crafts to reach your target 9 times out of 10 for the whole route, so you buy less. Steps read "~140 crafts, buy for 155 to be safe".
+- Buy it or make it: click a material you'd craft (a bolt, a bar) to buy it ready-made instead, with both prices shown.
+- New setting "Buy everything for the route": what you already have isn't planned in.
+- When the auction house sells a vendor good for less, the cheaper price is used. Merchants with only a few in stock are never counted on.
+- Patterns from reputation vendors are used once you have the standing.
+- The guide shows the recipes to learn (with a Map button to the trainer or vendor), tools to make or buy, rank books and quests, the level a rank needs, and a Buy button at an open merchant.
+- The planner shows how old the auction prices are.
+
 ## v0.4.0 (2026-11-22)
 - More Merchant's Favor recipes now show where to buy them and are used in the leveling routes.
 - EverlookDB Auctions' Crafting profit page can now include the recipes your alts know.

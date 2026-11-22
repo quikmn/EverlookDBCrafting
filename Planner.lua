@@ -3,8 +3,9 @@
 --
 -- The route follows the site's rule for every professions guide, in this order:
 --   1. every step must reliably give its skill-ups: a recipe you know, or one you can learn now for your faction
---      (trainer, a one-off teacher outside a dungeon, a vendor pattern). Dungeon, drop, quest, reputation and unknown
---      recipes are never in it (with "Patterns from the auction house" on, a drop whose pattern is up for sale today is);
+--      (trainer, a one-off teacher outside a dungeon, a vendor pattern). Dungeon, drop, quest and unknown recipes are
+--      never in it (with "Patterns from the auction house" on, a drop whose pattern is up for sale today is); a vendor
+--      pattern behind a reputation only once you have that standing (o.repOk; the site, not knowing you, never does);
 --   2. then the cheapest, in gold at today's prices;
 --   3. a step sticks with the recipe in hand unless another is clearly cheaper, so steps stay long.
 -- The skill-up chance is the classic one: orange always, yellow to green (gray - skill) / (gray - yellow), gray never.
@@ -38,7 +39,8 @@ end
 -- The cost of one unit of each material: its price, or crafting it from a recipe of the pool when that is cheaper
 -- (a recipe that needs a cooldown is bought, not made). base(id) -> { e = copper, gold = copper, est = bool }.
 -- Same algorithm as the site's analyse(): the memo keeps only answers made outside a loop.
-local function costing(pool, base, matsOf)
+-- choice(id) (optional): "buy" never crafts it, "craft" crafts it even when buying is cheaper (the player's pick).
+local function costing(pool, base, matsOf, choice)
   local makers = {}
   for _, r in ipairs(pool) do
     if r.creates and r.creates ~= 0 and r.skip ~= "unavailable" and r.skip ~= "missing" and #matsOf(r) > 0 then
@@ -51,7 +53,9 @@ local function costing(pool, base, matsOf)
     if memo[id] then return memo[id] end
     local b = base(id)
     local best = { e = b.e, gold = b.gold, est = b.est, via = nil }
-    if makers[id] and not stack[id] then
+    local pick = choice and choice(id)
+    local forced = pick == "craft"
+    if makers[id] and not stack[id] and pick ~= "buy" then
       stack[id], depth = true, depth + 1
       for _, r in ipairs(makers[id]) do
         if r.skip ~= "cooldown" then
@@ -61,7 +65,7 @@ local function costing(pool, base, matsOf)
             e, gold, est = e + x.e * m[2], gold + x.gold * m[2], est or x.est
           end
           e = e / r.yield
-          if e < best.e then best = { e = e, gold = gold / r.yield, est = est, via = r } end
+          if e < best.e or (forced and not best.via) then best = { e = e, gold = gold / r.yield, est = est, via = r } end
         end
       end
       stack[id], depth = nil, depth - 1
@@ -130,23 +134,52 @@ function P.guide(usable, costOf, from, to)
   return steps, stall
 end
 
--- Crafts expected (and at 90%) to go from skill a to b with recipe r: the remaining part of a step.
-function P.craftsBetween(r, a, b)
+-- The expected crafts and their variance from skill a to b with recipe r (each skill point a geometric draw).
+function P.meanVar(r, a, b)
   local mean, var = 0, 0
   for s = a, b - 1 do
     local p = P.chance(r, s)
     if p <= 0 then p = 1 end
     mean, var = mean + 1 / p, var + (1 - p) / (p * p)
   end
+  return mean, var
+end
+
+-- Crafts expected (and at 90%) to go from skill a to b with recipe r, on its own: the remaining part of a step.
+function P.craftsBetween(r, a, b)
+  local mean, var = P.meanVar(r, a, b)
   return math.ceil(mean - 1e-6), math.max(math.ceil(mean - 1e-6), math.ceil(mean + P.Z90 * math.sqrt(var) - 1e-6))
+end
+
+-- The 90% buffer of a whole route: enough crafts to reach the target 9 times out of 10 (the sum of every step's
+-- draws, normal approximation), shared out over the steps by their variance, so an orange step gets none and the
+-- route doesn't pay for a 90% margin on every single step. Sets st.extra (crafts on top of the mean) and st.n90.
+function P.spreadBuffer(steps)
+  local total = 0
+  for _, st in ipairs(steps) do total = total + (st.var or 0) end
+  local buffer = P.Z90 * math.sqrt(total)
+  for _, st in ipairs(steps) do
+    st.extra = total > 0 and buffer * (st.var or 0) / total or 0
+    st.n90 = math.max(st.n, math.ceil(st.crafts + st.extra - 1e-6))
+  end
+  return buffer
 end
 
 -- What a recipe takes to learn for this plan: nil when it can't be in the route at all.
 -- Known recipes always can (and cost nothing more). Otherwise tier <= 2 for your side, a vendor pattern only with
 -- that switch on, a tier-3 recipe only when its pattern is for sale on the auction house and that switch is on.
+local function repPattern(r, o)
+  return (r.tier[o.side] or 9) == 3 and r.why and r.why[o.side] == "rep" and r.item and r.item ~= 0
+    and o.repOk and o.repOk(r) and o.patternPrice and o.patternPrice(r) or nil
+end
+P.repPattern = repPattern
+
 local function learnable(r, o)
   if o.known and o.known[r.spell] then return 0, 0 end
   if r.needsCd then return nil end
+  -- a vendor pattern behind a reputation you already have (o.repOk): as good as any vendor pattern
+  local rp = repPattern(r, o)
+  if rp then return 1, rp + (r.fee or 0) end
   local t = r.tier[o.side] or 9
   if t <= P.MAIN_TIER then
     local pattern = r.item and r.item ~= 0 and not r.trained and not r.auto
@@ -174,7 +207,7 @@ local function route(recipes, o, excluded, base)
     end
   end
   local matsOf = o.matsOf or function(r) return r.mats end
-  local cost = costing(pool, base, matsOf)
+  local cost = costing(pool, base, matsOf, o.choice)
   local rcost, est = {}, {}
   for _, r in ipairs(pool) do
     local e, isEst = 0, false
@@ -318,7 +351,9 @@ o = {
   vendorPatterns       false: leave out recipes that need a vendor pattern
   ahPatterns           true: also recipes whose pattern ahPatternPrice(r) finds on the auction house
   owned                { [id] = n }: materials you have; a second pass counts them as free where they cover the need
-  buffer               true: shop for the 90% buffer (n90) instead of the expected crafts
+  buffer               true: shop for the 90% buffer (n90, P.spreadBuffer) instead of the expected crafts
+  choice(id)           "buy" / "craft": the player's pick for a material that can be made (nil: the cheaper way)
+  repOk(r)             true when you have the reputation a recipe's vendor pattern asks for
   oneTime              false: ignore pattern and fee costs (the site's route, for the parity tests)
   matsOf(r)            the reagents of a recipe (the server's, where a profession window showed others)
   ranks, maxSkill      for the rank trainings (P.trainings)
@@ -367,6 +402,7 @@ function P.plan(recipes, o)
   end
   local count = function(st) return o.buffer and st.n90 or st.n end
   local res = best(makeBase(nil))
+  P.spreadBuffer(res.steps)
   -- second pass: materials you already have enough of cost nothing
   if o.owned then
     local raw = P.shopping(res, matsOf, count)
@@ -374,7 +410,7 @@ function P.plan(recipes, o)
     for _, x in ipairs(raw) do
       if (o.owned[x.id] or 0) >= x.n then free[x.id], any = true, true end
     end
-    if any then res = best(makeBase(free)) end
+    if any then res = best(makeBase(free)); P.spreadBuffer(res.steps) end
   end
   local raw, crafted = P.shopping(res, matsOf, count)
   -- the tools: one craft's materials, or the tool itself, join the shopping list
@@ -411,7 +447,8 @@ function P.plan(recipes, o)
       local pattern = r.item and r.item ~= 0 and not r.trained and not r.auto
       if pattern then
         local pr = (r.tier[o.side] or 9) <= P.MAIN_TIER and o.patternPrice and o.patternPrice(r)
-          or (o.ahPatternPrice and o.ahPatternPrice(r))
+          or repPattern(r, o) or (o.ahPatternPrice and o.ahPatternPrice(r))
+        if repPattern(r, o) then st.rep = true end
         st.patternPrice = pr
         if pr then t.patterns = t.patterns + pr else t.patternsUnknown = t.patternsUnknown + 1 end
       elseif r.trained or r.fee then

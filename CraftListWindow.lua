@@ -260,7 +260,7 @@ function LW.primary()
     return
   end
   local ok, msg = ns.craftList.sendToAuctions()
-  if ok then ns.print(ns.craftList.sentText(#ns.craftList.shoppingItems(tree)))
+  if ok then ns.print(ns.craftList.sentText(#ns.craftList.shoppingItems(tree), msg))
   elseif ok == nil then ns.print("loading item names, one moment...")
   else ns.print("couldn't send the list: " .. tostring(msg)) end
 end
@@ -283,8 +283,7 @@ function LW.render()
     p:SetUsable(true)
   else
     p:SetText("Send missing to Auctions")
-    local api = rawget(_G, "EverlookDBAuctionsAPI")
-    p:SetUsable(api ~= nil and (api.version or 0) >= 2 and #ns.craftList.shoppingItems(tree) > 0)
+    p:SetUsable(ns.craftList.shoppingTarget() ~= nil and #ns.craftList.shoppingItems(tree) > 0)
   end
   f.emptyState:SetShown(#tree.roots == 0)
   f.hint:SetText(#tree.roots == 0 and "Also: /ecraft list add <recipe name> [count]"

@@ -169,6 +169,93 @@ step("the 90% buffer: mean plus 1.28 standard deviations of the geometric draws"
   for _, st in ipairs(res.steps) do check(st.n90 >= st.n, "n90 below n") end
 end)
 
+step("the route's 90% buffer is shared out by variance: orange steps get none, the whole route ~90%", function()
+  local res = fixPlan({ oneTime = false, buffer = true })
+  local total, extra, own = 0, 0, 0
+  for _, st in ipairs(res.steps) do
+    total = total + st.var
+    extra = extra + (st.n90 - st.crafts)
+    if st.var == 0 then eq(st.n90, st.n, "an orange step got a buffer") end
+    check(st.n90 >= st.n, "n90 below n")
+    -- each step at its own 90% would need this much more
+    own = own + (math.ceil(st.crafts + P.Z90 * math.sqrt(st.var) - 1e-6) - st.crafts)
+  end
+  local want = P.Z90 * math.sqrt(total)
+  check(extra >= want - 1e-6, ("route buffer %.2f below the 90%% point %.2f"):format(extra, want))
+  check(extra <= want + #res.steps, "more than rounding over the 90% point")
+  check(extra < own, ("the shared buffer (%.1f) should be smaller than every step's own (%.1f)"):format(extra, own))
+end)
+
+step("buy or craft: your pick for an intermediate wins over the cheaper way", function()
+  local made = function(res) for _, c in ipairs(res.shop.crafted) do if c.id == 100 then return true end end return false end
+  check(made(fixPlan({ oneTime = false })), "bolts are made (cheaper)")
+  local buy = fixPlan({ oneTime = false, choice = function(id) return id == 100 and "buy" or nil end })
+  check(not made(buy), "bolts still made with 'buy' picked")
+  local bought = false
+  for _, x in ipairs(buy.shop.raw) do if x.id == 100 then bought = x.n > 0 end end
+  check(bought, "bolts not on the shopping list")
+  -- 'craft' makes them even when buying is cheaper
+  prices[100] = 50
+  check(not made(fixPlan({ oneTime = false })), "cheap bolts should be bought")
+  check(made(fixPlan({ oneTime = false, choice = function(id) return id == 100 and "craft" or nil end })), "'craft' picked but bought")
+  prices[100] = 300
+end)
+
+step("reputation: a vendor pattern behind a standing only once you have it", function()
+  local fx = {
+    R({ spell = 31, name = "Plain", creates = 130, learn = 1, yellow = 30, green = 40, gray = 50, mats = { { 10, 3 } } }),
+    R({ spell = 32, name = "Rep Robe", creates = 131, learn = 1, yellow = 60, green = 70, gray = 80, mats = { { 10, 1 } }, item = 950,
+      tier = { a = 3, h = 3 }, why = { a = "rep", h = "rep" }, trained = false }),
+  }
+  local function uses(res) for _, st in ipairs(res.steps) do if st.r.spell == 32 then return st end end end
+  local base = { from = 1, to = 60, side = "a", known = {}, price = function() return 100 end, patternPrice = function() return 500 end }
+  check(not uses(P.plan(fx, base)), "a reputation pattern without the standing")
+  base.repOk = function(r) return r.spell == 32 end
+  local res = P.plan(fx, base)
+  local st = uses(res)
+  check(st and st.rep, "a reputation pattern you can buy is not used")
+  eq(res.totals.patterns, 500, "its price counts")
+  -- the game's standing: Friendly (5) meets "friendly" (4 in the data, 0 Hated .. 7 Exalted), Neutral doesn't
+  local r = ns.recipes(197)[1]
+  local item
+  for id, ri in pairs(ns.DATA.recipeItems) do if ri.rep then item = id; break end end
+  check(item, "no reputation pattern in the data")
+  local need = ns.DATA.recipeItems[item].rep
+  local fake = { item = item }
+  C_Reputation = { GetNumFactions = function() return 1 end,
+    GetFactionDataByIndex = function() return { name = need[1], reaction = need[2] + 1 } end }
+  check(ns.repOk(fake), "standing met")
+  C_Reputation.GetFactionDataByIndex = function() return { name = need[1], reaction = need[2] } end
+  check(not ns.repOk(fake), "one standing short")
+  C_Reputation = nil
+  check(not ns.repOk(fake), "an unknown standing counted as met")
+  check(r, "recipes")
+end)
+
+step("prices: the cheaper of vendor and auction house, a tie to the vendor", function()
+  local THREAD = 2320
+  local v = ns.prices.vendor(THREAD)
+  check(v, "thread has a vendor price")
+  local ah
+  EverlookDBAuctionsAPI = { version = 6, price = function(id) if id == THREAD then return ah, 600 end end }
+  ah = v * 2
+  local p, how = ns.prices.unit(THREAD)
+  eq(how, "vendor", "dearer auction")
+  ah = v
+  p, how = ns.prices.unit(THREAD)
+  eq(how, "vendor", "a tie")
+  ah = math.max(1, v - 1)
+  if ah < v then
+    p, how = ns.prices.unit(THREAD)
+    eq(how, "ah", "cheaper auction"); eq(p, ah, "its price")
+    eq(ns.prices.where(THREAD), "ah", "where")
+  end
+  local newest, oldest, src = ns.prices.ages({ THREAD, 2589 })
+  eq(newest, 600, "age"); eq(src, "EverlookDB Auctions", "source")
+  eq(ns.prices.ageText(600), "10 min", "age text")
+  EverlookDBAuctionsAPI = nil
+end)
+
 step("rank trainings at the caps you still have to raise", function()
   local ranks = { { 75, 1, 5, 10 }, { 150, 50, 10, 450 }, { 225, 125, 20, 4500 }, { 300, 200, 35, 50000 } }
   local tr = P.trainings(ranks, 1, 300, 75)
@@ -596,13 +683,117 @@ step("the planner page and the guide window build and show a route", function()
   local rows = ns.guide.rows(ns.plans.saved(197), 120)
   local heads = {}
   for _, r in ipairs(rows) do if r.kind == "head" then heads[#heads + 1] = r.text end end
-  eq(table.concat(heads, "|"), "Buy at the auction house|Buy from vendors|Make first|Materials still needed|Steps", "sections")
+  eq(table.concat(heads, "|"), "Shopping list|In your bags|Steps", "sections")
   -- right-click marks the first step done
   EverlookCraftChar.done[197] = { [1] = true }
   local i = ns.plans.currentStep(ns.plans.saved(197), 120)
   eq(i, 2, "the next step is current after marking the first done")
   EverlookCraftChar.done[197] = {}
   check(#MOCK.errors == 0, "errors: " .. tostring(MOCK.errors[1]))
+end)
+
+step("the shopping list: have / need, cost of what is short, where; ticks off as it lands; patterns and fees", function()
+  local rt = ns.plans.calculate(197, 200, 120)
+  check(rt, "no route")
+  local shop = ns.plans.shopping(rt, 120)
+  check(#shop.items > 0, "no items")
+  local sum = 0
+  for _, e in ipairs(shop.items) do
+    check(e.need > 0 and e.have <= e.need and e.short == e.need - e.have, "have / need / short of " .. e.id)
+    if e.make then check(e.price == nil, "a made item priced as bought")
+    elseif e.cost then eq(e.cost, e.price * e.short, "cost of the short part"); sum = sum + e.cost end
+  end
+  for _, l in ipairs(shop.learn) do sum = sum + (l.price or 0) end
+  for _, t in ipairs(shop.train) do sum = sum + (t.fee or 0) end
+  eq(shop.total, sum, "the total is the items, patterns and fees")
+  -- buy what is short of the first bought item: it ticks off
+  local e
+  for _, x in ipairs(shop.items) do if not x.make and x.short > 0 then e = x break end end
+  check(e, "nothing short")
+  local me = ns.me()
+  me.bags[e.id] = (me.bags[e.id] or 0) + e.short
+  local after
+  for _, x in ipairs(ns.plans.shopping(rt, 120).items) do if x.id == e.id then after = x end end
+  eq(after.short, 0, "still short after buying")
+  me.bags[e.id] = me.bags[e.id] - e.short
+  -- vendor goods stay off the auction house list
+  for _, it in ipairs(ns.plans.auctionItems(shop)) do
+    check(ns.prices.where(it[1]) ~= "vendor", "a vendor good on the auction house list")
+  end
+  -- crafts left from mid-step: the buffer share shrinks, never below the expected crafts
+  for _, st in ipairs(rt.steps) do
+    if st.to - st.from > 3 then
+      local n, n90 = ns.plans.craftsLeft(rt, st, st.from + 1)
+      check(n90 >= n and n90 <= st.n90, "mid-step buffer")
+      break
+    end
+  end
+end)
+
+step("buy everything for the route: nothing owned is planned in, only bags count as bought", function()
+  local me = ns.me()
+  me.bags[2589] = 500
+  EverlookCraftDB.settings.noOwn = true
+  check(next(ns.stock.owned()) == nil, "owned with the switch on")
+  me.bank[2589] = 40
+  eq(ns.stock.forRoute(2589), 500, "bags only")
+  EverlookCraftDB.settings.noOwn = false
+  check(ns.stock.forRoute(2589) >= 540, "bags and bank")
+  me.bank[2589] = nil
+  me.bags[2589] = 20
+end)
+
+step("buy or craft in the guide: a click switches an intermediate, the list follows", function()
+  local rt = ns.plans.calculate(197, 200, 120)
+  local made
+  for _, e in ipairs(ns.plans.shopping(rt, 120).items) do if e.make then made = e break end end
+  check(made, "the route makes nothing first (bolts)")
+  ns.guide.toggleMake(made)
+  eq(EverlookCraftDB.craftBuy[made.id], "buy", "the pick")
+  local now
+  for _, e in ipairs(ns.plans.shopping(rt, 120).items) do if e.id == made.id then now = e end end
+  check(now and not now.make and now.buying, "still made after picking buy")
+  ns.craftList.setMode(made.id, nil)
+end)
+
+step("send to the auction house: EverlookDB Auctions, else Auctionator, waiting for item names", function()
+  local rt = ns.plans.calculate(197, 200, 120)
+  ns.me().bags, ns.me().bank = {}, {}
+  local sent
+  EverlookDBAuctionsAPI = { version = 2, addShoppingList = function(name, items) sent = { name = name, items = items }; return true, true end }
+  MOCK.log = {}
+  ns.guide.send()
+  check(sent and sent.name == "Tailoring skill-up" and #sent.items > 0, "not sent to Auctions")
+  EverlookDBAuctionsAPI = nil
+  -- Auctionator: by exact name with the amount; a name not loaded yet waits
+  local terms, list
+  local loaded = false
+  C_Item = C_Item or {}
+  local oldName = C_Item.GetItemNameByID
+  C_Item.GetItemNameByID = function(id) return loaded and ("Item " .. id) or nil end
+  Auctionator = { API = { v1 = {
+    ConvertToSearchString = function(_, t) return t.searchString .. ";" .. t.quantity end,
+    CreateShoppingList = function(_, name, t) list, terms = name, t end,
+  } } }
+  MOCK.timers, MOCK.log = {}, {}
+  ns.guide.send()
+  eq(list, nil, "sent before the names loaded")
+  loaded = true
+  MOCK.RunTimers()
+  eq(list, "Tailoring skill-up", "Auctionator list")
+  check(#terms == #sent.items and terms[1]:find(";%d+$"), "terms with amounts")
+  Auctionator, C_Item.GetItemNameByID = nil, oldName
+  check(#MOCK.errors == 0, "errors: " .. tostring(MOCK.errors[1]))
+end)
+
+step("rank rows: a book to buy and read, or a quest, where no trainer teaches the rank", function()
+  local skill, step
+  for sk, ranks in pairs(ns.DATA.ranks) do
+    for st, rk in pairs(ranks) do if #rk[5] == 0 and rk[6] ~= 0 then skill, step = sk, st end end
+  end
+  check(skill, "no book rank in the data")
+  local title = ns.options.rowTitle({ kind = "train", tr = { step = step } }, skill)
+  check(title:find("buy and read", 1, true), "title: " .. title)
 end)
 
 print(("%d passed, %d failed"):format(passes, #failures))

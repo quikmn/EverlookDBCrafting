@@ -46,8 +46,11 @@ setting("ahpatterns", "ahPatterns", "Patterns from the auction house",
 setting("noalts", "noAlts", "Don't count my alts' materials",
   "Only this character's bags and bank count as owned; materials on your other characters are bought.",
   { "alts", "twinks", "other characters", "bank", "stock" }, routeChanged)
+setting("noown", "noOwn", "Buy everything for the route",
+  "What you already have isn't planned in: every material is on the shopping list, and only your bags count as bought. Tools you have still count.",
+  { "own", "bags", "bank", "stock", "buy all", "fresh" }, routeChanged)
 setting("buffer", "buffer", "Shop for the 90% safety buffer",
-  "Buy enough for 9 times out of 10, not just the expected number of crafts, so you don't run short on yellow recipes.",
+  "Buy enough to reach the target 9 times out of 10, not just the expected number of crafts. The extra crafts go to the steps whose skill-ups are least certain (yellow and green), never to orange ones.",
   { "safety", "buffer", "extra", "spare" }, routeChanged)
 setting("auctions", "useAuctions", "Prices from EverlookDB Auctions",
   "The lowest buyout from EverlookDB Auctions' scans for your realm and side, when that addon is installed.",
@@ -106,10 +109,22 @@ function O.selected()
   return O.skill
 end
 
+-- where the route starts: what you set, else your skill now (1 when not read yet)
+function O.fromOf(skill)
+  if O.from and O.fromFor == skill then return O.from end
+  return ns.plans.skillNow(skill) or 1
+end
+
 function O.targetOf(skill)
   if O.target and O.targetFor == skill then return O.target end
   local saved = ns.plans.saved(skill)
   return saved and saved.to or ns.plans.defaultTarget(skill)
+end
+
+-- the pattern's own name (what to look for at the vendor or the auction house)
+local function patternName(r)
+  if not (r.item and r.item ~= 0) then return nil end
+  return (ns.itemInfo(r.item))
 end
 
 local function learnText(r, st)
@@ -118,13 +133,46 @@ local function learnText(r, st)
   if r.auto then return "taught with the rank" end
   local pattern = r.item and r.item ~= 0 and not r.trained
   if pattern then
-    if (r.tier[ns.side()] or 9) <= 2 then
-      return "vendor pattern " .. ns.money(st.patternPrice) .. ((r.tier[ns.side()] == 2) and " (limited stock)" or "")
+    local name = "|cffffd060" .. patternName(r) .. "|r "
+    if st.rep then
+      local ri = ns.DATA.recipeItems[r.item]
+      return name .. "from a vendor " .. ns.money(st.patternPrice) .. (ri and ri.rep and (" (" .. ri.rep[1] .. ", you have the standing)") or "")
     end
-    return "pattern from the auction house " .. ns.money(st.patternPrice)
+    if (r.tier[ns.side()] or 9) <= 2 then
+      return name .. "from a vendor " .. ns.money(st.patternPrice) .. ((r.tier[ns.side()] == 2) and " (limited stock)" or "")
+    end
+    return name .. "from the auction house " .. ns.money(st.patternPrice)
   end
   if r.trained then return "trainer " .. ns.money(st.fee) end
   return "teacher"
+end
+
+-- a recipe to learn on the shopping list, in words: where and what it costs
+function O.learnLine(l)
+  if l.how == "trainer" then return ("At your trainer, %s."):format(ns.money(l.price)) end
+  if l.how == "teacher" then return "From its teacher (no fee known)." end
+  local name = patternName(l.r) or "the pattern"
+  if l.how == "vendor" then return ("Buy %s from a vendor, %s, and read it."):format(name, ns.money(l.price)) end
+  return ("Buy %s at the auction house, %s, and read it."):format(name, ns.money(l.price))
+end
+
+-- who to go to for a recipe to learn: its pattern's vendors, else the trainers of the rank that teaches it
+function O.learnNpcs(l, skill)
+  local r = l.r
+  if l.how == "vendor" and r.item and r.item ~= 0 then
+    local ri = ns.DATA.recipeItems[r.item]
+    if ri and #ri[2] > 0 then
+      local ids = {}
+      for i = 1, #ri[2], 2 do ids[#ids + 1] = ri[2][i] end
+      return ids
+    end
+  elseif l.how == "trainer" then
+    local ranks, best = ns.DATA.ranks[skill], nil
+    for step, rk in pairs(ranks or {}) do
+      if (rk[2] or 1) <= (r.learn or 1) and #rk[5] > 0 and (not best or step > best) then best = step end
+    end
+    return best and ranks[best][5] or nil
+  end
 end
 
 -- route rows: trainings, steps, the stall
@@ -148,7 +196,12 @@ O.routeRows = routeRows
 
 function O.rowTitle(row, skill)
   if row.kind == "train" then
-    return ("Train %s"):format(ns.DATA.rankNames[row.tr.step] or "the next rank")
+    local rank = ns.DATA.rankNames[row.tr.step] or "the next rank"
+    local rk = ns.DATA.ranks[skill] and ns.DATA.ranks[skill][row.tr.step]
+    -- Cooking, First Aid and Fishing's higher ranks: a book to buy and read, or a quest, not a trainer
+    if rk and #rk[5] == 0 and rk[6] and rk[6] ~= 0 then return ("%s: buy and read %s"):format(rank, (ns.itemInfo(rk[6]))) end
+    if rk and #rk[5] == 0 and #rk[8] > 0 then return ("%s: from the quest %s"):format(rank, rk[8][2] or "?") end
+    return ("Train %s"):format(rank)
   elseif row.kind == "stall" then
     return ("The route stops at %d"):format(row.at)
   elseif row.kind == "tool" then
@@ -186,7 +239,7 @@ function O.rowDetail(row, skill)
   local st = row.st
   local r = ns.plans.recipe(skill, st.spell)
   local col = r and ns.widgets.colorCode(ns.colorAt(r, st.from)) or "|cffffffff"
-  local crafts = st.n90 > st.n and ("%d crafts (%d at 90%%)"):format(st.n, st.n90) or ("%d crafts"):format(st.n)
+  local crafts = (st.n90 > st.n and S().buffer) and ("~%d crafts, buy for %d to be safe"):format(st.n, st.n90) or ("~%d crafts"):format(st.n)
   local each = (st.est and "\226\137\136 " or "") .. ns.money(st.each) .. " each"
   if st.est then each = "\226\137\136 price unknown" end
   local tools = ""
@@ -244,6 +297,55 @@ function O.rowTooltip(row, skill)
   return lines
 end
 
+-- the shopping list of the selected profession's route, from your skill now (nil: no route)
+function O.currentShop()
+  local skill = O.selected()
+  local route = ns.plans.saved(skill)
+  O.shop = route and ns.plans.shopping(route, ns.plans.skillNow(skill)) or nil
+  return O.shop
+end
+
+-- a shopping list row's second line: what it costs and where to get it
+function O.shopDetail(row)
+  local dot = "  \194\183  "
+  if row.kind == "learn" then return O.learnLine(row.l) end
+  if row.kind == "train" then return O.rowDetail(row, O.selected()) end
+  local e = row.e
+  if e.make then
+    local parts = { ("make it: %s"):format(e.make.name or "its recipe"), "crafted " .. ns.money(e.craftU) .. " each" }
+    if e.buyU then parts[#parts + 1] = ("ready-made %s each (%s)"):format(ns.money(e.buyU), e.buyHow == "vendor" and "vendor" or "auction house") end
+    return table.concat(parts, dot)
+  end
+  local parts = {}
+  if e.how == "vendor" then
+    local _, name, zone = ns.plans.vendorOf(e.id)
+    parts[#parts + 1] = name and ("vendor: %s, %s"):format(name, zone) or "vendor"
+  elseif e.how == "ah" then
+    parts[#parts + 1] = "auction house"
+  else
+    parts[#parts + 1] = "no price: not in the last scan, no vendor sells it (farm it, or scan the auction house)"
+  end
+  if e.price then parts[#parts + 1] = ns.money(e.price) .. " each" end
+  if e.short > 0 then
+    parts[#parts + 1] = e.cost and (ns.money(e.cost) .. " for the " .. e.short .. " to buy") or (e.short .. " to get")
+  else
+    parts[#parts + 1] = "|cff62cf88you have them|r"
+  end
+  if e.buying then parts[#parts + 1] = ("bought ready-made (crafted %s each)"):format(ns.money(e.craftU)) end
+  return table.concat(parts, dot)
+end
+
+-- who a shopping list row's Map button looks among
+function O.shopNpcs(row)
+  if row.kind == "learn" then return O.learnNpcs(row.l, O.selected()) end
+  if row.kind == "train" then return O.rowNpcs(row, O.selected()) end
+  local e = row.e
+  if e.how == "vendor" and not e.make and e.short > 0 then
+    local it = ns.DATA.items[e.id]
+    if it and #it[7] > 0 then return it[7] end
+  end
+end
+
 local function tilesText(route)
   local t = route.totals
   local function amount(v, unknown)
@@ -285,6 +387,12 @@ app:Section("planner", "Skill-up planner", function(stack)
     return ("%d / %d  \194\183  %s"):format(rank, max or 0, n > 0 and (n .. " recipes known") or "|cff8d94a3open its window once to read your recipes|r")
   end)
   UI.Slider(stack, {
+    label = "From skill", desc = "Where the route starts. Default: your skill now. Set it higher to plan ahead.",
+    keywords = { "from", "start", "current", "skill" }, min = 1, max = 299, step = 1,
+    get = function() return O.fromOf(O.selected()) end,
+    set = function(v) O.from, O.fromFor = math.floor(v + 0.5), O.selected() end,
+  })
+  UI.Slider(stack, {
     label = "Target skill", desc = "Where the route ends. Default: the next rank's cap above your skill.",
     keywords = { "target", "goal", "skill", "level" }, min = 2, max = 300, step = 1,
     get = function() return O.targetOf(O.selected()) end,
@@ -294,11 +402,12 @@ app:Section("planner", "Skill-up planner", function(stack)
   app:Widget(stack, "vendorpatterns")
   app:Widget(stack, "ahpatterns")
   app:Widget(stack, "noalts")
+  app:Widget(stack, "noown")
   app:Widget(stack, "buffer")
   local row = UI.ButtonRow(stack, {
     { label = "Calculate", width = 150, style = "accent", onClick = function()
       local skill = O.selected()
-      local route, err = ns.plans.calculate(skill, O.targetOf(skill))
+      local route, err = ns.plans.calculate(skill, O.targetOf(skill), O.fromOf(skill))
       if not route then app:Print(err) end
       O.refreshPlanner()
     end, desc = "Work out the cheapest route with today's prices and keep it for this character." },
@@ -319,11 +428,21 @@ app:Section("planner", "Skill-up planner", function(stack)
     if not route then return "No route yet. Pick a target and press Calculate." end
     local parts = { ("%s %d to %d, calculated %s for %s."):format(ns.profName(skill), route.from, route.to,
       date("%d %b %H:%M", route.at), route.side == "h" and "Horde" or "Alliance") }
-    if route.to ~= O.targetOf(skill) or route.key ~= table.concat({ S().vendorPatterns and 1 or 0, S().ahPatterns and 1 or 0, S().noAlts and 1 or 0, S().buffer and 1 or 0 }, "") then
+    if route.to ~= O.targetOf(skill) or route.key ~= ns.plans.keyOf(S()) then
       parts[#parts + 1] = "|cffffd100The target or a switch changed: press Calculate for a new route.|r"
     end
     if route.estimated then
       parts[#parts + 1] = "\226\137\136 Some materials have no price: the route chose by an estimate, and totals count only real prices."
+    end
+    local ids = {}
+    for _, x in ipairs(route.raw or {}) do ids[#ids + 1] = x.id end
+    local newest, oldest, src = ns.prices.ages(ids)
+    if src and newest then
+      local old = oldest and oldest > 86400 * 2
+      parts[#parts + 1] = ("%sAuction prices (%s): %s to %s old.%s|r"):format(old and "|cffffd100" or "|cff8d94a3", src,
+        ns.prices.ageText(newest), ns.prices.ageText(oldest), old and " Scan the auction house and recalculate for today's." or "")
+    elseif not src and (ns.prices.auctionsLoaded() or ns.prices.auctionatorLoaded()) then
+      parts[#parts + 1] = "|cffffd100No auction prices for this route yet: scan the auction house, then recalculate.|r"
     end
     return table.concat(parts, " ")
   end)
@@ -369,6 +488,76 @@ app:Section("planner", "Skill-up planner", function(stack)
       end } },
   })
   O.list = list
+
+  -- the shopping list: everything the rest of the route needs, in one place
+  UI.Header(stack, "Shopping list", "Everything the rest of the route needs: have / need on your characters, what it costs and where to get it. Ticks off as it lands in your bags.")
+  UI.Note(stack, function()
+    local shop = O.currentShop()
+    if not shop then return "Press Calculate first." end
+    local n = 0
+    for _, e in ipairs(shop.items) do if not e.make and e.short > 0 then n = n + 1 end end
+    if n == 0 and #shop.learn == 0 and #shop.train == 0 then return "|cff62cf88You have everything the route still needs.|r" end
+    return ("Still to buy: %d material%s%s, %s%s."):format(n, n == 1 and "" or "s",
+      #shop.learn > 0 and (", " .. #shop.learn .. " recipe" .. (#shop.learn == 1 and "" or "s") .. " to learn") or "",
+      ns.money(shop.total), shop.unpriced > 0 and (" + " .. shop.unpriced .. " without a price") or "")
+  end)
+  UI.ButtonRow(stack, {
+    { label = "Send to auction house", width = 190, onClick = function() if ns.guide then ns.guide.send() end end,
+      desc = "Puts what the route still needs from the auction house on a shopping list in EverlookDB Auctions (else Auctionator), with the amounts.",
+      keywords = { "shopping list", "auctionator", "auctions", "send", "export" } },
+    refresh = function(f)
+      f.buttons[1]:SetUsable(ns.craftList.shoppingTarget() ~= nil and O.shop ~= nil and #ns.plans.auctionItems(O.shop) > 0)
+    end,
+  })
+  local function shopRows()
+    local shop = O.currentShop()
+    if not shop then return {} end
+    local rows = {}
+    for _, e in ipairs(shop.items) do rows[#rows + 1] = { kind = "item", e = e } end
+    for _, l in ipairs(shop.learn) do rows[#rows + 1] = { kind = "learn", l = l } end
+    for _, t in ipairs(shop.train) do rows[#rows + 1] = { kind = "train", tr = t.tr } end
+    return rows
+  end
+  O.shopRows = shopRows
+  UI.List(stack, {
+    rowHeight = 40, max = 120,
+    empty = "Nothing to buy.",
+    items = shopRows,
+    icon = function(row)
+      if row.kind == "item" then return (select(2, ns.itemInfo(row.e.id))) end
+      if row.kind == "learn" then return "scroll" end
+      return "book"
+    end,
+    title = function(row)
+      if row.kind == "learn" then return ("Learn %s"):format(row.l.r.name) end
+      if row.kind == "train" then return O.rowTitle(row, O.selected()) end
+      local e = row.e
+      local ok = e.have >= e.need
+      return ("%s%s  %s%d / %d|r"):format(e.make and "Make " or "", (ns.itemInfo(e.id)), ok and "|cff62cf88" or "|cffe8eaef", e.have, e.need)
+    end,
+    detail = function(row) return O.shopDetail(row) end,
+    color = function(row) if row.kind ~= "item" then return T.gold end end,
+    tooltip = function(row)
+      if row.kind ~= "item" then return nil end
+      return { (ns.itemInfo(row.e.id)), ns.craftList.whereText(row.e.id) ~= "" and ("You have: " .. ns.craftList.whereText(row.e.id)) or "You have none." }
+    end,
+    buttons = {
+      { label = function(row) return row.kind == "item" and row.e.make and "Buy instead" or "Make instead" end, width = 100,
+        shown = function(row) return row.kind == "item" and ((row.e.make and row.e.buyU ~= nil) or row.e.buying) end,
+        onClick = function(row) if ns.guide then ns.guide.toggleMake(row.e) end; O.refreshPlanner() end },
+      { label = "Buy", width = 56,
+        shown = function(row) return row.kind == "item" and not row.e.make and row.e.short > 0 and ns.merchant.sells(row.e.id) ~= nil end,
+        onClick = function(row)
+          local calls, why = ns.merchant.buyItem(row.e.id, row.e.short)
+          app:Print(calls and ("bought %d %s."):format(row.e.short, (ns.itemInfo(row.e.id))) or ("nothing bought: " .. tostring(why) .. "."))
+        end },
+      { label = "Map", width = 56, shown = function(row) return O.shopNpcs(row) ~= nil end,
+        onClick = function(row)
+          local id = ns.map.nearest(O.shopNpcs(row))
+          if id then ns.map.pin(id) else app:Print("no one for your side in the data.") end
+        end },
+    },
+  })
 
   function O.refreshPlanner()
     local skill = O.selected()
@@ -434,7 +623,7 @@ app:Section("list", "Crafting list", function(stack)
     if api then return "|cffffd100update EverlookDB Auctions for shopping lists|r" end
     return "|cff8d94a3EverlookDB Auctions not installed|r"
   end)
-  UI.Note(stack, "Each craft of a listed recipe takes one off its count. Materials you can make break down into their own materials when one of your characters knows the recipe; right-click one in the list to buy it instead. Vendor goods have a Map button to the nearest vendor and stay off the shopping list. \"Send missing to Auctions\" saves the rest as the shopping list \"Crafting list\" in EverlookDB Auctions.")
+  UI.Note(stack, "Each craft of a listed recipe takes one off its count. Materials you can make break down into their own materials when one of your characters knows the recipe; right-click one in the list to buy it instead. Vendor goods have a Map button to the nearest vendor and stay off the shopping list. \"Send missing to Auctions\" saves the rest as the shopping list \"Crafting list\" in EverlookDB Auctions (else Auctionator).")
 end, { icon = "list", desc = "Plan what to craft: every material, what you have in bags, bank and on your other characters, craft or buy, and what is missing." })
 
 setting("favor.bags", "favorBagsFree", "Merchant's Favor: count my bags as free",
@@ -523,7 +712,7 @@ app:Section("prices", "Prices", function(stack)
   app:Widget(stack, "auctions")
   app:Widget(stack, "auctionator")
   UI.Header(stack, "Vendors")
-  UI.Note(stack, "Vendor goods (thread, dyes, vials, flux) cost what a merchant last showed you, else what WoW Forever's vendors charge in EverlookDB's data. Visiting a merchant updates them.")
+  UI.Note(stack, "Vendor goods (thread, dyes, vials, flux) cost what a merchant last showed you, else what WoW Forever's vendors charge in EverlookDB's data. Visiting a merchant updates them; a merchant with only a few in stock is never used. When the auction house sells a vendor good for less, the cheaper price counts.")
 end, { icon = "coins" })
 
 ---------------------------------------------------------------------------------------------------------------------
@@ -539,7 +728,7 @@ app:Section("guide", "Guide window", function(stack)
     { label = "Open guide", width = 140, style = "accent", onClick = function() if ns.guide then ns.guide.open() end end,
       desc = "Opens the guide of your last route.", keywords = { "show", "checklist" } },
   })
-  UI.Note(stack, "Right-click a step in the guide to mark it done (or not). The guide selects the step's recipe in your profession window; crafting stays with the game's Create button.")
+  UI.Note(stack, "Right-click a step in the guide to mark it done (or not). The guide selects the step's recipe in your profession window; crafting stays with the game's Create button. In the shopping list, click a material you make to buy it ready-made instead (and back); at an open merchant, Buy gets what the route still lacks.")
 end, { icon = "check" })
 
 ---------------------------------------------------------------------------------------------------------------------
@@ -547,7 +736,7 @@ end, { icon = "check" })
 
 app:Section("about", "About", function(stack)
   UI.Header(stack, "About", "Data from everlookdb.com, the same rules as the site's professions guide.")
-  UI.Note(stack, "Every step must reliably give its skill-ups: a recipe you know, or one you can learn now for your faction (a trainer, a teacher outside a dungeon, a vendor pattern). Dungeon, drop, quest, reputation and unknown recipes are never in the route. A learn skill marked ~ is an estimate.")
+  UI.Note(stack, "Every step must reliably give its skill-ups: a recipe you know, or one you can learn now for your faction (a trainer, a teacher outside a dungeon, a vendor pattern). Dungeon, drop, quest and unknown recipes are never in the route; a reputation vendor's pattern only once you have the standing. A learn skill marked ~ is an estimate.")
   UI.Header(stack, "Sources")
   UI.Note(stack, "WoW Forever client data, classic-db (CMaNGOS, GPL-3.0), Efficient Games' EG Link (CC BY 4.0, changed by EverlookDB) and AllTheThings (MIT, changed by EverlookDB). Prices: EverlookDB Auctions or Auctionator, on your PC.")
   UI.Stat(stack, "Data build", function() return ns.DATA and ns.DATA.build or "?" end)

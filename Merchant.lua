@@ -29,15 +29,18 @@ function M.routeShort()
   for skill, rt in pairs(EverlookCraftChar and EverlookCraftChar.routes or {}) do
     local rank = ns.plans.skillNow(skill)
     if not (rank and rank >= rt.to) then
-      for _, c in ipairs(rt.crafted or {}) do makes[c.id] = true end
       local ok, rem = pcall(ns.plans.remaining, rt, rank)
-      for id, n in pairs(ok and rem or {}) do need[id] = (need[id] or 0) + n end
+      for id, n in pairs(ok and rem or {}) do
+        need[id] = (need[id] or 0) + n
+        if ns.plans.makerOf(rt, id) then makes[id] = true end
+      end
     end
   end
   local out = {}
   for id, n in pairs(need) do
-    if not makes[id] and ns.prices.vendor(id) then
-      local short = n - ns.stock.usable(id) - (M.pending[id] or 0)
+    -- vendor goods only, and only where the vendor is the cheaper way (else the auction house list has it)
+    if not makes[id] and ns.prices.where(id) == "vendor" then
+      local short = n - ns.stock.forRoute(id) - (M.pending[id] or 0)
       if short > 0 then out[id] = short end
     end
   end

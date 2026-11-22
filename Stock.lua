@@ -75,9 +75,18 @@ function St.usable(id)
   return h.bags + h.bank + (ns.settings().noAlts and 0 or h.alts)
 end
 
--- every item you have, for the planner: { [id] = n } (your alts on this realm or a connected one, as St.have)
+-- What counts as "have" on a skill-up route: St.usable, or with "Buy everything for the route" (noOwn) only your
+-- bags, where what you buy lands (nothing you already had is planned in, but what you buy now ticks off).
+function St.forRoute(id)
+  if ns.settings().noOwn then return St.have(id).bags end
+  return St.usable(id)
+end
+
+-- every item you have, for the planner: { [id] = n } (your alts on this realm or a connected one, as St.have);
+-- empty with "Buy everything for the route" on
 function St.owned()
   local out = {}
+  if ns.settings().noOwn then return out end
   local guid, noAlts, realms = ns.guid(), ns.settings().noAlts, ns.mailRealms()
   for g, c in pairs(EverlookCraftDB and EverlookCraftDB.chars or {}) do
     if g == guid or (not noAlts and ns.canMail(c, realms)) then

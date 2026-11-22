@@ -224,7 +224,7 @@ function F.shoppingItems(res)
     if b.how == "craft" then
       local crafts = math.ceil(short / (b.via.yield or 1) - 1e-6)
       for _, m in ipairs((ns.matsOf(b.via))) do
-        if not ns.prices.vendor(m[1]) then
+        if ns.prices.where(m[1]) ~= "vendor" then
           local need = crafts * m[2]
           put(m[1], need - math.min(have(m[1]), need))
         end

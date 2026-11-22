@@ -1,6 +1,6 @@
--- What a material costs you. In order: a vendor that sells it (the price you saw at a merchant, else what WoW Forever's
--- vendors charge in EverlookDB's data), then the auction house: EverlookDB Auctions' scans when installed, else
--- Auctionator's. Nothing else: no guesses in totals. A material with no price shows "?" and is counted as unpriced.
+-- What a material costs you: the cheaper of a vendor that sells it without a stock limit (the price you saw at a
+-- merchant, else what WoW Forever's vendors charge in EverlookDB's data) and the auction house (EverlookDB Auctions'
+-- scans when installed, else Auctionator's). A tie goes to the vendor. Nothing else: no guesses in totals. A material with no price shows "?" and is counted as unpriced.
 -- To choose between recipes when a material has no price, the planner may use an estimate (its effort times what one
 -- gathered material sells for at your auction house); that estimate is never shown as a price.
 local _, ns = ...
@@ -45,13 +45,46 @@ function Pr.ah(id)
   return nil
 end
 
--- what you pay for one: { price, how = "vendor" | "ah", source } or nil
+-- what you pay for one: price, how ("vendor" | "ah"), source, age of an auction price in seconds; or nil
 function Pr.unit(id)
   local v = Pr.vendor(id)
-  if v then return v, "vendor", "vendor" end
   local p, src, age = Pr.ah(id)
+  if v and (not p or v <= p) then return v, "vendor", "vendor" end
   if p then return p, "ah", src, age end
   return nil
+end
+
+-- where to buy it: "vendor", "ah" or nil (no price)
+function Pr.where(id)
+  local _, how = Pr.unit(id)
+  return how
+end
+
+-- How old the auction prices of some items are: newest, oldest in seconds (nil when none has an age), and the source.
+-- EverlookDB Auctions gives each price's age; Auctionator its days since the last scan that saw the item.
+function Pr.ages(ids)
+  local newest, oldest, source
+  for _, id in ipairs(ids) do
+    local p, src, age = Pr.ah(id)
+    if p and not age and src == "Auctionator" then
+      local d = plain(try(Auctionator.API.v1.GetAuctionAgeByItemID, "EverlookDBCrafting", id))
+      if type(d) == "number" then age = d * 86400 end
+    end
+    if p then source = source or src end
+    if type(age) == "number" then
+      if not newest or age < newest then newest = age end
+      if not oldest or age > oldest then oldest = age end
+    end
+  end
+  return newest, oldest, source
+end
+
+-- "12 min", "5 h", "3 days"
+function Pr.ageText(sec)
+  if not sec then return "?" end
+  if sec < 3600 then return math.max(1, math.floor(sec / 60)) .. " min" end
+  if sec < 86400 * 2 then return math.floor(sec / 3600) .. " h" end
+  return math.floor(sec / 86400) .. " days"
 end
 
 -- what a recipe's pattern costs at a vendor (from the data; nil: no gold vendor or unknown)

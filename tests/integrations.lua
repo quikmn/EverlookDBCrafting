@@ -429,6 +429,10 @@ step("merchant window: material prices saved per realm, used before the data; li
   ns.capture.readMerchant()
   eq(ns.prices.vendor(THREAD), 10, "saved while turned off")
   EverlookCraftDB.settings.capture = true
+  -- a merchant with only a few of a vendor good: its price is never used (a route can't count on that stock)
+  merchant({ { id = THREAD, price = 2, avail = 3 } })
+  ns.capture.readMerchant()
+  eq(ns.prices.vendor(THREAD), 10, "a limited stock's price used")
 end)
 
 ---------------------------------------------------------------------------------------------------------------------

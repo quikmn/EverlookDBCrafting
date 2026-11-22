@@ -91,6 +91,7 @@ ns.DEFAULTS = {
     vendorPatterns = true,   -- recipes whose pattern a vendor sells (the site's main route has them too)
     ahPatterns = false,      -- recipes whose pattern is on the auction house right now (a drop you can buy today)
     noAlts = false,          -- don't count materials on your other characters
+    noOwn = false,           -- buy everything for a route: what you already have isn't planned in (tools still count)
     buffer = true,           -- shop for the 90% safety buffer, not the expected number of crafts
     useAuctions = true,      -- prices from EverlookDB Auctions' scans
     useAuctionator = true,   -- else Auctionator's

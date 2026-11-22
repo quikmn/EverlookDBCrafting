@@ -153,7 +153,7 @@ function L.tree()
     n.have = math.min(a, need)
     pool[id] = a - n.have
     n.short = need - n.have
-    n.vendor = ns.prices.vendor(id) ~= nil
+    n.vendor = ns.prices.where(id) == "vendor"
     local r, by = L.knownMaker(id)
     n.by = by
     n.mode = "buy"
@@ -220,25 +220,63 @@ end
 
 L.LIST_NAME = "Crafting list"
 
--- Send the missing materials to EverlookDB Auctions' shopping list. true, or false and why (in words).
-function L.sendToAuctions(retry)
+-- Where a shopping list can go: "EverlookDB Auctions", "Auctionator" or nil
+function L.shoppingTarget()
   local api = rawget(_G, "EverlookDBAuctionsAPI")
-  if not api or (api.version or 0) < 2 or type(api.addShoppingList) ~= "function" then
-    return false, "EverlookDB Auctions (version with shopping lists) isn't installed."
+  if api and (api.version or 0) >= 2 and type(api.addShoppingList) == "function" then return "EverlookDB Auctions" end
+  local a = rawget(_G, "Auctionator")
+  a = a and a.API and a.API.v1
+  if a and type(a.CreateShoppingList) == "function" and type(a.ConvertToSearchString) == "function" then return "Auctionator" end
+end
+
+local function nameOf(id)
+  local n = plain(try(C_Item and C_Item.GetItemNameByID, id))
+  if not n then n = plain(try(C_Item and C_Item.GetItemInfo, id)) or plain(try(GetItemInfo, id)) end
+  return type(n) == "string" and n or nil
+end
+
+local function toAuctionator(name, items)
+  local a = Auctionator.API.v1
+  local terms, missing = {}, 0
+  for _, it in ipairs(items) do
+    local n = nameOf(it[1])
+    if n then
+      local term = try(a.ConvertToSearchString, "EverlookDBCrafting", { searchString = n, isExact = true, quantity = it[2] })
+      if term then terms[#terms + 1] = term end
+    else
+      missing = missing + 1
+    end
   end
-  local items = L.shoppingItems()
+  if missing > 0 then return false, "loading" end
+  if #terms == 0 then return false, "no items" end
+  local ok = pcall(a.CreateShoppingList, "EverlookDBCrafting", name, terms)
+  return ok, not ok and "refused" or nil
+end
+
+-- Send { { itemID, count } } as the shopping list `name` to EverlookDB Auctions, else Auctionator. true and where,
+-- false and why (in words), or nil, "loading" while the game loads item names: then it tries again (up to 5 s) and
+-- calls report(ok, where or why) once at the end.
+function L.sendList(name, items, report, retry)
+  local target = L.shoppingTarget()
+  if not target then return false, "EverlookDB Auctions (version with shopping lists) isn't installed, nor Auctionator." end
   if #items == 0 then return false, "nothing to buy at the auction house: you have it all, or only vendor goods are missing." end
-  local ok, res, why = pcall(api.addShoppingList, L.LIST_NAME, items)
-  if not ok then return false, "EverlookDB Auctions refused the list." end
-  if res then return true, why end
+  local ok, res, why
+  if target == "EverlookDB Auctions" then
+    ok, res, why = pcall(EverlookDBAuctionsAPI.addShoppingList, name, items)
+    if not ok then return false, "EverlookDB Auctions refused the list." end
+  else
+    ok, res, why = true, toAuctionator(name, items)
+    if res then why = nil end
+  end
+  if res then return true, target end
   -- the game hasn't loaded every item's name yet: ask for them and try again shortly (only the last try speaks)
   if why == "loading" and (retry or 0) < 5 and C_Timer and C_Timer.After then
     for _, it in ipairs(items) do
       if C_Item and C_Item.RequestLoadItemDataByID then pcall(C_Item.RequestLoadItemDataByID, it[1]) end
     end
     C_Timer.After(1, function()
-      local ok2, msg = L.sendToAuctions((retry or 0) + 1)
-      if ok2 ~= nil then ns.print(ok2 and L.sentText(#L.shoppingItems()) or ("couldn't send the list: " .. tostring(msg))) end
+      local ok2, msg = L.sendList(name, items, report, (retry or 0) + 1)
+      if ok2 ~= nil and report then report(ok2, msg) end
     end)
     return nil, "loading"
   end
@@ -246,8 +284,18 @@ function L.sendToAuctions(retry)
   return false, tostring(why or "unknown reason")
 end
 
-function L.sentText(n)
-  return ("%d materials are on the shopping list \"%s\" in EverlookDB Auctions (vendor goods left out)."):format(n, L.LIST_NAME)
+-- Send the missing materials to EverlookDB Auctions' shopping list (else Auctionator's). true, or false and why.
+function L.sendToAuctions()
+  local items = L.shoppingItems()
+  local ok, why = L.sendList(L.LIST_NAME, items, function(ok2, msg)
+    ns.print(ok2 and L.sentText(#items, msg) or ("couldn't send the list: " .. tostring(msg)))
+  end)
+  if ok then return true, why end
+  return ok, why
+end
+
+function L.sentText(n, where)
+  return ("%d materials are on the shopping list \"%s\" in %s (vendor goods left out)."):format(n, L.LIST_NAME, where or "EverlookDB Auctions")
 end
 
 ---------------------------------------------------------------------------------------------------------------------

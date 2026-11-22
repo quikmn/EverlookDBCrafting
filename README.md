@@ -2,13 +2,18 @@
 
 Level your professions the cheap and reliable way on WoW Forever. Type `/ecraft` (or `/eprof`).
 
-- **Skill-up planner.** Pick a profession and a target. You get the cheapest route at today's prices: each step's
-  recipe, how many crafts to expect, and the materials, patterns and trainer fees it costs. A Map button shows the
-  nearest trainer.
+- **Skill-up planner.** Say where you are and where you want to be (from your skill now, or any skill you set). You
+  get the cheapest route at today's prices: each step's recipe and roughly how many crafts it takes ("~140, buy for
+  155 to be safe"). A Map button shows the nearest trainer or vendor.
+- **One shopping list.** Every material and pattern the route needs: how many you have on your characters, how many
+  you need, what the rest costs and where to get it (auction house, the nearest vendor, or make it yourself). It
+  ticks off as things land in your bags. Send it to an EverlookDB Auctions or Auctionator shopping list in one click,
+  or buy the vendor part at an open merchant.
 - **Every step gives its skill-ups.** Only recipes you know or can learn now for your faction are used: no dungeon,
-  drop, quest or reputation recipes. Optionally add patterns that are for sale on the auction house right now.
-- **Skill-up guide.** A small movable checklist: the current step with a live skill bar, what to buy at the auction
-  house and from vendors, what to make first, and every step. Right-click a step to mark it done.
+  drop or quest recipes, and a reputation vendor's pattern only once you have the standing. Optionally add patterns
+  that are for sale on the auction house right now.
+- **Skill-up guide.** A small movable checklist: the current step with a live skill bar, the shopping list, what to
+  have in your bags, and every step with rank training, tools and recipes to learn. Right-click a step to mark it done.
 - **Crafting list** (`/ecraft list`). Plan what to craft across all your characters. See which materials you already
   have in bags, bank and on your alts, and send the rest to an EverlookDB Auctions shopping list.
 - **Recipe browser** (`/ecraft recipes`). Every recipe of a profession, learned or not. Search by name or reagent
@@ -19,7 +24,8 @@ Level your professions the cheap and reliable way on WoW Forever. Type `/ecraft`
   recipe, and a Waylaid Crate's Favor. Each part can be turned off.
 - **Guild crafters.** See which recipes your guild mates know, if they run the addon too. Can be turned off.
 - **Buy what the route needs** from an open merchant in two clicks, never more than needed.
-- **Your materials on every character** of your realm count as owned (bags and bank). You can turn this off.
+- **Your materials on every character** of your realm count as owned (bags and bank). You can turn this off, or
+  plan as if you had nothing ("Buy everything for the route").
 - **Prices** from EverlookDB Auctions, or Auctionator if you use that. A material with no price shows "?" and is
   never guessed.
 - **Profession window colours.** Each recipe name in its skill-up colour, with your chance of a skill-up ("37%") and

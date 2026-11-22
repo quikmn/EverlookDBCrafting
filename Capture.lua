@@ -3,8 +3,8 @@
 --   * a trainer window: each recipe's fee and the skill it needs (the learn skill is then no longer an estimate), and
 --     the fee, skill and level of each rank (Journeyman, Expert...);
 --   * a merchant window: the price of every material (a reagent of any recipe, or a vendor good in the data). A
---     material the data didn't know a vendor for counts as a vendor good from then on, unless the merchant has only a
---     few (limited stock).
+--     material the data didn't know a vendor for counts as a vendor good from then on. A merchant with only a few
+--     (limited stock) is never used: a route can't count on it.
 -- Only what the window shows is read: CraftColors-style filters are never changed, nothing is bought or learned.
 local _, ns = ...
 local try, plain = ns.try, ns.plain
@@ -220,8 +220,10 @@ function C.readMerchant()
   local rec = C.realm(true)
   local saved = 0
   for _, row in ipairs(C.merchantRows()) do
-    local mat, dataVendor = isMaterial(row.id)
-    if mat and row.price and row.price > 0 and not row.extended and (dataVendor or row.avail < 0) then
+    local mat = isMaterial(row.id)
+    -- only an unlimited stock counts: a merchant with two Peacebloom can't stock a route (the data's vendor
+    -- prices are unlimited vendors' too)
+    if mat and row.price and row.price > 0 and not row.extended and row.avail < 0 then
       rec.prices[row.id] = { row.price / row.qty, time() }
       saved = saved + 1
     end
