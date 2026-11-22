@@ -21,12 +21,14 @@
 --                        window ranks them with its saved filters: { { id, name, favor, total, perFavor,
 --                        perFavorText ("~1s 20c per Favor"), fill ("fill: 20 Peacebloom, auction house") } }; only
 --                        ranked crates (ones with a price and a known Favor)
---   api.openFavor()      (v4) opens the Merchant's Favor window (EverlookDB Auctions' main window links to it)
+--   api.openFavor()      (v4) opens the Merchant's Favor window
+--   api.embedFavor(parent) (v5) shows the whole Merchant's Favor list (filters, crates, "Send missing to Auctions")
+--                        inside parent: EverlookDB Auctions' main window has it as its Merchant's Favor page
 --
 -- Every call reads what is already saved: nothing is sent anywhere, and the tables returned are copies.
 local _, ns = ...
 
-local api = { version = 4 }
+local api = { version = 5 }
 
 function api.recipe(spell)
   local r = type(spell) == "number" and ns.recipeBySpell(spell)
@@ -81,8 +83,42 @@ function api.favorBest(n)
   return out
 end
 
+-- The top window under the mouse (the one whose button was just clicked), or nil.
+local function opener()
+  local focus = GetMouseFoci and GetMouseFoci()[1] or GetMouseFocus and GetMouseFocus()
+  local w = focus
+  while w and w.GetParent and w:GetParent() and w:GetParent() ~= UIParent do w = w:GetParent() end
+  if w and w ~= UIParent and w.IsShown and w:IsShown() and w.GetLeft and w:GetLeft() then return w end
+end
+
+-- Puts win next to from: right of it if it fits on screen, else left; with no room for either, against the screen
+-- edge on the roomier side, so it covers as little as it can. Always on top.
+local function besides(win, from)
+  local ws, fs = win:GetEffectiveScale(), from:GetEffectiveScale()
+  local sw = UIParent:GetWidth() * UIParent:GetEffectiveScale()
+  local fl, fr, ft = from:GetLeft() * fs, from:GetRight() * fs, from:GetTop() * fs
+  local w = win:GetWidth() * ws
+  local x
+  if fr + 8 + w <= sw then x = fr + 8
+  elseif fl - 8 - w >= 0 then x = fl - 8 - w
+  elseif sw - fr >= fl then x = math.max(0, sw - w)
+  else x = 0 end
+  win:ClearAllPoints()
+  win:SetPoint("TOPLEFT", UIParent, "BOTTOMLEFT", x / ws, ft / ws)
+  if win.Raise then win:Raise() end
+end
+
+function api.embedFavor(parent)
+  if ns.favorWindow and parent then return ns.favorWindow.embed(parent) ~= nil end
+end
+
+-- Opened from another window (EverlookDB Auctions' main window): next to it, not under it.
 function api.openFavor()
-  if ns.favorWindow then ns.favorWindow.open() end
+  if not ns.favorWindow then return end
+  local from = opener()
+  ns.favorWindow.open()
+  local win = rawget(_G, "EverlookCraftFavor")
+  if from and win and from ~= win then pcall(besides, win, from) end
 end
 
 -- Read-only: writes to the table are refused, so one addon can't break it for another.

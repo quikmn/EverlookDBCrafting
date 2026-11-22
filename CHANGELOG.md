@@ -1,6 +1,7 @@
 # EverlookDB Crafting
 
 ## Unreleased
+- The whole Merchant's Favor list now also shows inside EverlookDB Auctions' main window, on its Merchant's Favor page.
 - EverlookDB Auctions' new Merchant's Favor page shows your three best Waylaid Crates and opens the full window.
 - Tooltips have a tidier look shared by every EverlookDB addon: recipes in their skill colour, your characters in class colours.
 - New setting "Solid tooltip background" (on by default, Tooltips page).

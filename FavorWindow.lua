@@ -164,52 +164,97 @@ local function chip(parent, label, onClick, width)
   return ns.widgets.Chip(parent, label, onClick, width)
 end
 
+-- Every place the crate list is shown: the window, and the Merchant's Favor page of EverlookDB Auctions' main window.
+-- Each view v has: host (shown or not), tiers, alliance, horde, level, sortPer, sortTotal, bags, list, sub, hint and
+-- primary.
+local views = {}
+
+-- The filter and sort bars at the top of host (y below its top), and the crate list in body.
+local function buildControls(v, host, y, body)
+  local bar = CreateFrame("Frame", nil, host)
+  bar:SetPoint("TOPLEFT", 16, y)
+  bar:SetPoint("RIGHT", host, "RIGHT", -16, 0)
+  bar:SetHeight(26)
+  v.tiers = {}
+  local prev
+  for t = 0, 4 do
+    local b = chip(bar, t == 0 and "All" or ns.favor.TIERS[t], function() S().favorTier = t; FW.render() end, t == 0 and 40 or 80)
+    if prev then b:SetPoint("LEFT", prev, "RIGHT", 4, 0) else b:SetPoint("LEFT", 0, 0) end
+    v.tiers[t] = b
+    prev = b
+  end
+  v.bags = chip(bar, "My bags free", function() S().favorBagsFree = not S().favorBagsFree; FW.render() end, 100)
+  v.bags:SetPoint("RIGHT", 0, 0)
+  v.level = chip(bar, "My level", function() S().favorMyLevel = not S().favorMyLevel; FW.render() end, 72)
+  v.level:SetPoint("RIGHT", v.bags, "LEFT", -4, 0)
+  v.horde = chip(bar, "Horde", function() S().favorSide = "h"; FW.render() end, 58)
+  v.horde:SetPoint("RIGHT", v.level, "LEFT", -12, 0)
+  v.alliance = chip(bar, "Alliance", function() S().favorSide = "a"; FW.render() end, 66)
+  v.alliance:SetPoint("RIGHT", v.horde, "LEFT", -4, 0)
+  -- sort: gold per Favor, or the cheapest total (crate + fill)
+  local sortBar = CreateFrame("Frame", nil, host)
+  sortBar:SetPoint("TOPLEFT", bar, "BOTTOMLEFT", 0, -6)
+  sortBar:SetPoint("RIGHT", host, "RIGHT", -16, 0)
+  sortBar:SetHeight(24)
+  local lbl = UI.Text(sortBar, T.fontSmall + 1, T.muted)
+  lbl:SetPoint("LEFT", 0, 0)
+  lbl:SetText("Sort by")
+  v.sortPer = chip(sortBar, "Cheapest per Favor", function() S().favorSort = "per"; FW.render() end, 140)
+  v.sortPer:SetPoint("LEFT", lbl, "RIGHT", 8, 0)
+  v.sortTotal = chip(sortBar, "Cheapest total", function() S().favorSort = "total"; FW.render() end, 116)
+  v.sortTotal:SetPoint("LEFT", v.sortPer, "RIGHT", 4, 0)
+  v.list = ns.widgets.VList(body, T, ROW_H, buildRow, paintRow, 4, "No crate matches the filters.")
+  v.list:SetAllPoints(body)
+  v.list.emptyFn = FW.emptyText
+  host:HookScript("OnShow", function() FW.render() end)
+  host:HookScript("OnSizeChanged", function() if host:IsShown() then v.list:Render() end end)
+  views[#views + 1] = v
+  return v
+end
+
 local function make()
   if f then return f end
   f = ns.widgets.Window({ name = "EverlookCraftFavor", posKey = "favor", title = "Merchant's Favor", icon = "bag",
     width = 780, height = 600, minWidth = 760, minHeight = 380, point = "CENTER", x = 220, y = 20, top = 130,
     hint = "Hover a crate for every bundle. Fill it with one of them." })
   T = f.T
-  -- filters: tier chips, then faction, level and bags
-  local bar = CreateFrame("Frame", nil, f)
-  bar:SetPoint("TOPLEFT", 16, -62)
-  bar:SetPoint("RIGHT", f, "RIGHT", -16, 0)
-  bar:SetHeight(26)
-  f.tiers = {}
-  local prev
-  for t = 0, 4 do
-    local b = chip(bar, t == 0 and "All" or ns.favor.TIERS[t], function() S().favorTier = t; FW.render() end, t == 0 and 40 or 80)
-    if prev then b:SetPoint("LEFT", prev, "RIGHT", 4, 0) else b:SetPoint("LEFT", 0, 0) end
-    f.tiers[t] = b
-    prev = b
-  end
-  f.bags = chip(bar, "My bags free", function() S().favorBagsFree = not S().favorBagsFree; FW.render() end, 100)
-  f.bags:SetPoint("RIGHT", 0, 0)
-  f.level = chip(bar, "My level", function() S().favorMyLevel = not S().favorMyLevel; FW.render() end, 72)
-  f.level:SetPoint("RIGHT", f.bags, "LEFT", -4, 0)
-  f.horde = chip(bar, "Horde", function() S().favorSide = "h"; FW.render() end, 58)
-  f.horde:SetPoint("RIGHT", f.level, "LEFT", -12, 0)
-  f.alliance = chip(bar, "Alliance", function() S().favorSide = "a"; FW.render() end, 66)
-  f.alliance:SetPoint("RIGHT", f.horde, "LEFT", -4, 0)
-  -- sort: gold per Favor, or the cheapest total (crate + fill)
-  local sortBar = CreateFrame("Frame", nil, f)
-  sortBar:SetPoint("TOPLEFT", bar, "BOTTOMLEFT", 0, -6)
-  sortBar:SetPoint("RIGHT", f, "RIGHT", -16, 0)
-  sortBar:SetHeight(24)
-  local lbl = UI.Text(sortBar, T.fontSmall + 1, T.muted)
-  lbl:SetPoint("LEFT", 0, 0)
-  lbl:SetText("Sort by")
-  f.sortPer = chip(sortBar, "Cheapest per Favor", function() S().favorSort = "per"; FW.render() end, 140)
-  f.sortPer:SetPoint("LEFT", lbl, "RIGHT", 8, 0)
-  f.sortTotal = chip(sortBar, "Cheapest total", function() S().favorSort = "total"; FW.render() end, 116)
-  f.sortTotal:SetPoint("LEFT", f.sortPer, "RIGHT", 4, 0)
-  f.list = ns.widgets.VList(f.body, T, ROW_H, buildRow, paintRow, 4, "No crate matches the filters.")
-  f.list:SetAllPoints(f.body)
-  f.list.emptyFn = FW.emptyText
-  f:SetPrimary("Send missing to Auctions", function() FW.primary() end, 190)
-  f:SetScript("OnShow", function() FW.render() end)
-  f:SetScript("OnSizeChanged", function() if f:IsShown() then f.list:Render() end end)
+  local v = { host = f, sub = f.sub, hint = f.hint }
+  buildControls(v, f, -62, f.body)
+  v.primary = f:SetPrimary("Send missing to Auctions", function() FW.primary() end, 190)
+  f.view, f.list = v, v.list
   return f
+end
+
+-- The crate list inside another addon's frame (EverlookDB Auctions' main window): filters, the list, a line about
+-- prices and where to turn in, and the "Send missing to Auctions" button, all inside parent. Built once per parent.
+local embedded = {}
+function FW.embed(parent)
+  if embedded[parent] then FW.render(); return embedded[parent] end
+  T = T or ns.widgets.theme()
+  local host = CreateFrame("Frame", nil, parent)
+  host:SetAllPoints(parent)
+  local v = { host = host }
+  v.sub = UI.Text(host, T.fontSmall + 1, T.muted)
+  v.sub:SetPoint("TOPLEFT", 16, 0)
+  v.sub:SetPoint("RIGHT", host, "RIGHT", -16, 0)
+  v.sub:SetWordWrap(false)
+  local footer = CreateFrame("Frame", nil, host)
+  footer:SetPoint("BOTTOMLEFT", 0, 0)
+  footer:SetPoint("BOTTOMRIGHT", 0, 0)
+  footer:SetHeight(46)
+  v.primary = UI.Button(footer, "Send missing to Auctions", function() FW.primary() end, 190, "accent")
+  v.primary:SetPoint("RIGHT", -16, 0)
+  v.hint = UI.Text(footer, T.fontSmall, T.muted)
+  v.hint:SetPoint("LEFT", 16, 0)
+  v.hint:SetPoint("RIGHT", v.primary, "LEFT", -12, 0)
+  v.hint:SetWordWrap(false)
+  local body = CreateFrame("Frame", nil, host)
+  body:SetPoint("TOPLEFT", 16, -86)
+  body:SetPoint("BOTTOMRIGHT", -16, 52)
+  buildControls(v, host, -22, body)
+  embedded[parent] = v
+  FW.render()
+  return v
 end
 
 -- what an empty list says: too low a level for any crate, else the filters
@@ -239,34 +284,41 @@ function FW.primary()
 end
 
 function FW.render()
-  if not f or not f:IsShown() then return end
   local s = S()
-  local rows = ns.favor.current()
-  FW.rows = rows
-  for t, b in pairs(f.tiers) do b:SetActive((s.favorTier or 0) == t) end
+  local rows
+  for _, v in ipairs(views) do
+    if v.host:IsShown() then
+      rows = rows or ns.favor.current()
+      FW.renderView(v, rows, s)
+    end
+  end
+  if rows then FW.rows = rows end
+end
+
+function FW.renderView(v, rows, s)
+  for t, b in pairs(v.tiers) do b:SetActive((s.favorTier or 0) == t) end
   local side = ns.favor.side()
-  f.alliance:SetActive(side == "a")
-  f.horde:SetActive(side == "h")
-  f.level:SetActive(s.favorMyLevel and true or false)
-  f.sortPer:SetActive(s.favorSort ~= "total")
-  f.sortTotal:SetActive(s.favorSort == "total")
-  f.bags:SetActive(s.favorBagsFree and true or false)
+  v.alliance:SetActive(side == "a")
+  v.horde:SetActive(side == "h")
+  v.level:SetActive(s.favorMyLevel and true or false)
+  v.sortPer:SetActive(s.favorSort ~= "total")
+  v.sortTotal:SetActive(s.favorSort == "total")
+  v.bags:SetActive(s.favorBagsFree and true or false)
   local ranked = 0
   for _, res in ipairs(rows) do if res.perFavor then ranked = ranked + 1 end end
   local src = ns.prices.auctionsLoaded() and "EverlookDB Auctions" or ns.prices.auctionatorLoaded() and "Auctionator" or nil
-  f.sub:SetText(src and ("%d crates ranked by %s%sprices: %s%s"):format(ranked,
+  v.sub:SetText(src and ("%d crates ranked by %s%sprices: %s%s"):format(ranked,
     s.favorSort == "total" and "total cost (crate + fill)" or "gold per Favor", DOT, src,
     s.favorBagsFree and (DOT .. "what you have counts as free") or "")
     or "|cffffd100No auction prices: install EverlookDB Auctions (or Auctionator) and scan the auction house.|r")
   local npc = ns.DATA.npcs[ns.favor.npc(side) or 0]
-  f.hint:SetText(npc and ("Turn in: %s, %s. Fill each crate with ONE bundle."):format(npc[1], ns.map.zoneName(npc[3]))
+  v.hint:SetText(npc and ("Turn in: %s, %s. Fill each crate with ONE bundle."):format(npc[1], ns.map.zoneName(npc[3]))
     or "Hover a crate for every bundle. Fill it with one of them.")
   local pick = FW.pick(rows)
-  local p = f.primary
   local api = rawget(_G, "EverlookDBAuctionsAPI")
-  p:SetUsable(api ~= nil and (api.version or 0) >= 2 and pick ~= nil and #ns.favor.shoppingItems(pick) > 0)
+  v.primary:SetUsable(api ~= nil and (api.version or 0) >= 2 and pick ~= nil and #ns.favor.shoppingItems(pick) > 0)
   if pick and not FW.selected then FW.selected = pick.c.id end
-  f.list:SetItems(rows, true)
+  v.list:SetItems(rows, true)
 end
 
 function FW.open()
