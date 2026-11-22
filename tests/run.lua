@@ -522,6 +522,51 @@ step("API: recipe, chance, stock, knownBy; read-only", function()
   check(not pcall(function() EverlookCraftAPI.x = 1 end), "writable")
 end)
 
+step("API v6: characters, recipesOf, bagsOf (this realm and faction only, copies)", function()
+  local api = EverlookCraftAPI
+  eq(api.version, 6, "version")
+  local db = EverlookCraftDB
+  local saved = db.chars
+  local me = ns.guid()
+  db.chars = {
+    [me] = saved[me],
+    ["Player-1-Alt"] = { name = "Alt", realm = "Mock Realm", realmID = 1, side = "a", class = "MAGE", level = 40,
+      profs = { [197] = { rank = 210, max = 225, known = { [2963] = true } }, [333] = { rank = 150, max = 225, known = {} } },
+      bags = { [2589] = 9 }, bank = {} },
+    ["Player-1-Hordie"] = { name = "Hordie", realm = "Mock Realm", realmID = 1, side = "h", profs = { [197] = { rank = 5, known = { [2963] = true } } },
+      bags = {}, bank = {} },
+    ["Player-2-Far"] = { name = "Far", realm = "Other Realm", realmID = 2, side = "a", profs = { [197] = { rank = 5, known = { [2963] = true } } },
+      bags = {}, bank = {} },
+    ["Player-1-NoProf"] = { name = "Nobody", realm = "Mock Realm", side = "a", profs = {}, bags = {}, bank = {} },
+  }
+  local ok, err = pcall(function()
+    local list = api.characters()
+    eq(#list, 2, "you and Alt (not the other faction, another realm or no recipes)")
+    check(list[1].me and list[1].key == me, "you first")
+    eq(list[2].name, "Alt", "alt")
+    eq(list[2].class, "MAGE", "class")
+    eq(#list[2].profs, 1, "a profession without known recipes is left out")
+    eq(list[2].profs[1].name, "Tailoring", "profession name")
+    eq(list[2].profs[1].rank, 210, "rank")
+    eq(list[2].profs[1].known, 1, "known count")
+    local rs = api.recipesOf("Player-1-Alt")
+    eq(#rs, 1, "one recipe")
+    eq(rs[1].spell, 2963, "spell")
+    check(rs[1].creates and rs[1].skill == 197 and #rs[1].mats > 0, "creates, skill, mats")
+    rs[1].mats[1][2] = 999
+    check(api.recipesOf("Player-1-Alt")[1].mats[1][2] ~= 999, "a copy")
+    eq(api.recipesOf("Player-1-Hordie"), nil, "other faction refused")
+    eq(api.recipesOf("Player-2-Far"), nil, "another realm refused")
+    eq(api.recipesOf("nobody"), nil, "unknown key")
+    eq(api.bagsOf("Player-1-Alt")[2589], 9, "bags")
+    api.bagsOf("Player-1-Alt")[2589] = 1
+    eq(db.chars["Player-1-Alt"].bags[2589], 9, "bags are a copy")
+    eq(api.bagsOf("Player-2-Far"), nil, "bags of another realm refused")
+  end)
+  db.chars = saved
+  if not ok then error(err, 0) end
+end)
+
 step("slash: bare opens the window, help lists plan and guide, status, a typo suggests", function()
   SlashCmdList.EVERLOOKCRAFT("")
   check(ns.app:IsShown(), "window not open")

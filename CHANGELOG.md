@@ -1,5 +1,8 @@
 # EverlookDB Crafting
 
+## Unreleased
+- EverlookDB Auctions' Crafting profit page can now include the recipes your alts know.
+
 ## v0.3.0 (2026-11-22)
 - The whole Merchant's Favor list now also shows inside EverlookDB Auctions' main window, on its Merchant's Favor page.
 - EverlookDB Auctions' new Merchant's Favor page shows your three best Waylaid Crates and opens the full window.

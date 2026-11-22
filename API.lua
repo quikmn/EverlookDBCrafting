@@ -24,11 +24,19 @@
 --   api.openFavor()      (v4) opens the Merchant's Favor window
 --   api.embedFavor(parent) (v5) shows the whole Merchant's Favor list (filters, crates, "Send missing to Auctions")
 --                        inside parent: EverlookDB Auctions' main window has it as its Merchant's Favor page
+--   api.characters()     (v6) your characters who can trade with this one (this realm or a connected one, the same
+--                        faction) and know recipes: { { key (the character's GUID, as this addon keys them), name,
+--                        class (file name, "MAGE"), level, me (true for the one you're on), profs = { { skill (skill
+--                        line), name ("Tailoring"), rank, max, known (recipes known) } } } }, you first, then by name
+--   api.recipesOf(key)   (v6) the recipes a character from api.characters() knows that make an item: { { spell, name,
+--                        skill (skill line), learn, creates, yield, mats = { { item, n } } } } (the server's reagents
+--                        where a profession window showed others); nil for a character it doesn't list
+--   api.bagsOf(key)      (v6) what that character had in its bags when last seen: { [item] = n }; nil as above
 --
 -- Every call reads what is already saved: nothing is sent anywhere, and the tables returned are copies.
 local _, ns = ...
 
-local api = { version = 5 }
+local api = { version = 6 }
 
 function api.recipe(spell)
   local r = type(spell) == "number" and ns.recipeBySpell(spell)
@@ -106,6 +114,82 @@ local function besides(win, from)
   win:ClearAllPoints()
   win:SetPoint("TOPLEFT", UIParent, "BOTTOMLEFT", x / ws, ft / ws)
   if win.Raise then win:Raise() end
+end
+
+-- The saved record of a character api.characters() lists (this realm or a connected one, the same faction), or nil.
+local function listed(key)
+  local db = EverlookCraftDB
+  local c = type(key) == "string" and db and type(db.chars) == "table" and db.chars[key]
+  if type(c) ~= "table" or type(c.profs) ~= "table" then return nil end
+  if key ~= ns.guid() and not ns.canMail(c) then return nil end
+  return c
+end
+
+local function knownCount(p)
+  local n = 0
+  for _ in pairs(type(p) == "table" and type(p.known) == "table" and p.known or {}) do n = n + 1 end
+  return n
+end
+
+function api.characters()
+  local out = {}
+  local db = EverlookCraftDB
+  if not db or type(db.chars) ~= "table" then return out end
+  if ns.me then pcall(ns.me) end   -- this character's name and class, before it is listed
+  local mine = ns.guid()
+  for key in pairs(db.chars) do
+    local c = listed(key)
+    if c then
+      local profs = {}
+      for skill, p in pairs(c.profs) do
+        local n = knownCount(p)
+        if n > 0 then
+          profs[#profs + 1] = { skill = skill, name = ns.profName(skill) or tostring(skill), rank = tonumber(p.rank),
+            max = tonumber(p.max), known = n }
+        end
+      end
+      if #profs > 0 then
+        table.sort(profs, function(a, b)
+          if (a.rank or 0) ~= (b.rank or 0) then return (a.rank or 0) > (b.rank or 0) end
+          return a.name < b.name
+        end)
+        out[#out + 1] = { key = key, name = c.name or "?", class = c.class, level = c.level, me = key == mine, profs = profs }
+      end
+    end
+  end
+  table.sort(out, function(a, b)
+    if a.me ~= b.me then return a.me end
+    return tostring(a.name) < tostring(b.name)
+  end)
+  return out
+end
+
+function api.recipesOf(key)
+  local c = listed(key)
+  if not c then return nil end
+  local out = {}
+  for skill, p in pairs(c.profs) do
+    local rs = ns.recipes(skill)
+    for spell in pairs(type(p) == "table" and type(p.known) == "table" and p.known or {}) do
+      local r = rs and rs.bySpell[spell]
+      if r and r.creates then
+        local mats = {}
+        for _, m in ipairs((ns.matsOf(r))) do mats[#mats + 1] = { m[1], m[2] } end
+        out[#out + 1] = { spell = r.spell, name = r.name, skill = skill, learn = r.learn, creates = r.creates,
+          yield = r.yield, mats = mats }
+      end
+    end
+  end
+  table.sort(out, function(a, b) return a.spell < b.spell end)
+  return out
+end
+
+function api.bagsOf(key)
+  local c = listed(key)
+  if not c then return nil end
+  local out = {}
+  for id, n in pairs(type(c.bags) == "table" and c.bags or {}) do out[id] = n end
+  return out
 end
 
 function api.embedFavor(parent)
