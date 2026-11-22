@@ -741,7 +741,7 @@ app:Section("about", "About", function(stack)
   UI.Note(stack, "WoW Forever client data, classic-db (CMaNGOS, GPL-3.0), Efficient Games' EG Link (CC BY 4.0, changed by EverlookDB) and AllTheThings (MIT, changed by EverlookDB). Prices: EverlookDB Auctions or Auctionator, on your PC.")
   UI.Stat(stack, "Data build", function() return ns.DATA and ns.DATA.build or "?" end)
   UI.Header(stack, "Chat commands")
-  UI.Note(stack, "/ecraft  this window (also /eprof)\n/ecraft plan [profession]  the planner\n/ecraft guide  the guide window\n/ecraft recipes [words]  the recipe browser, searching for words\n/ecraft list  the Crafting list\n/ecraft list add <recipe> [count]  put a recipe on it\n/ecraft list clear  empty it\n/ecraft favor  Waylaid Crates ranked by gold per Merchant's Favor\n/ecraft colors [on | off]  the profession window colours (was CraftColors)\n/ecraft status  what the addon knows\n/ecraft search <words>  find a setting\n/ecraft help  all of this in chat")
+  UI.Note(stack, "/ecraft  this window (also /eprof)\n/ecraft plan [profession]  the planner\n/ecraft guide  the guide window\n/ecraft recipes [words]  the recipe browser, searching for words\n/ecraft list  the Crafting list\n/ecraft list add <recipe> [count]  put a recipe on it\n/ecraft list clear  empty it\n/ecraft favor  Waylaid Crates ranked by gold per Merchant's Favor\n/ecraft colors [on | off]  the profession window colours (was CraftColors)\n/ecraft skillcards [on | off | move | reset | test]  the skill-up cards\n/ecraft status  what the addon knows\n/ecraft search <words>  find a setting\n/ecraft help  all of this in chat")
 end, { icon = "info" })
 
 ---------------------------------------------------------------------------------------------------------------------

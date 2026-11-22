@@ -1,5 +1,11 @@
 # EverlookDB Crafting
 
+## Unreleased
+- Skill-up cards: "Hurray! Tailoring 151" at the top right whenever any profession or secondary skill rises (crafting, gathering, Fishing, Cooking, First Aid, Lockpicking, Poisons). A thin bar shows how far you are toward the rank's cap; a hint says the rank to train when you hit the cap, or the next step of your route ("next: Bolt of Silk Cloth x12"). Several skill-ups at once add up on one card (+3).
+- Fireworks every 25 points, at a rank's cap and at 300.
+- With EverlookDB Auctions the cards sit right under its loot cards, so they never cover each other.
+- `/ecraft skillcards on | off | move | reset | test`, and a new "Skill-up cards" settings page: fireworks, an optional soft sound (off), and weapon and defense skills too (off).
+
 ## v0.5.0 (2026-11-22)
 - Skill-up planner: one shopping list for the whole route. Every material and pattern with have / need on your characters, what the rest costs and where to get it (auction house, the nearest vendor, or make it yourself). It ticks off as you buy.
 - "Send to auction house" puts what's left on a shopping list in EverlookDB Auctions, or Auctionator if you use that. The Crafting list can send to Auctionator now too.

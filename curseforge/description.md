@@ -14,6 +14,10 @@ Level your professions the cheap and reliable way on WoW Forever. Type `/ecraft`
   that are for sale on the auction house right now.
 - **Skill-up guide.** A small movable checklist: the current step with a live skill bar, the shopping list, what to
   have in your bags, and every step with rank training, tools and recipes to learn. Right-click a step to mark it done.
+- **Skill-up cards.** "Hurray! Tailoring 151" at the top right whenever a profession rises: crafting, gathering,
+  Fishing, Cooking, First Aid and the rest. A bar shows how far you are toward the rank's cap, and a hint says what's
+  next: the rank to train when you hit the cap, or the next step of your route. Fireworks every 25 points. With
+  EverlookDB Auctions the cards sit right under its loot cards. Move them with `/ecraft skillcards move`.
 - **Crafting list** (`/ecraft list`). Plan what to craft across all your characters. See which materials you already
   have in bags, bank and on your alts, and send the rest to an EverlookDB Auctions shopping list.
 - **Recipe browser** (`/ecraft recipes`). Every recipe of a profession, learned or not. Search by name or reagent
@@ -42,6 +46,7 @@ Level your professions the cheap and reliable way on WoW Forever. Type `/ecraft`
 | `/ecraft recipes [words]` | the recipe browser |
 | `/ecraft favor` | Merchant's Favor |
 | `/ecraft colors [on \| off]` | the profession window colours |
+| `/ecraft skillcards [on \| off \| move \| reset]` | the skill-up cards: switch them, move them, put them back |
 | `/ecraft help` | all commands |
 
 ## Privacy
