@@ -1,5 +1,8 @@
 # EverlookDB Crafting
 
+## Unreleased
+- Recipe data refreshed: over 200 more patterns (Blacksmithing, First Aid and others) now show where they drop, as seen by players.
+
 ## v0.6.2 (2026-11-22)
 - Skill-up cards: no more "+43" and fireworks after logging in; a jump the addon didn't see happen counts as one point.
 
