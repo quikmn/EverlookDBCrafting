@@ -1,6 +1,6 @@
 # EverlookDB Crafting
 
-## Unreleased
+## v0.6.3 (2026-11-24)
 - Recipe data refreshed: over 200 more patterns (Blacksmithing, First Aid and others) now show where they drop, as seen by players.
 
 ## v0.6.2 (2026-11-22)
