@@ -1,11 +1,22 @@
 -- Stock across your characters: what each one has in its bags (the reagent bag too) and, from its last bank visit, in
 -- its bank and reagent bank. Kept per character in EverlookCraftDB (this PC only, never uploaded). Bags are counted
 -- again 2 seconds after they change; the bank while it is open.
+-- With EverlookDB Auctions (API v7) loaded, its inventory is the one store for every EverlookDB addon: it also knows
+-- each character's mail (and mail on its way from another of yours), auctions and guild bank. Then this file reads
+-- from there (mail counts as having it) and doesn't count by itself; without it, everything works as before.
 local _, ns = ...
 local try, plain = ns.try, ns.plain
 
 local St = {}
 ns.stock = St
+
+-- EverlookDB Auctions' inventory (EverlookDBAuctionsAPI.inventory), or nil
+function St.shared()
+  local api = rawget(_G, "EverlookDBAuctionsAPI")
+  if not api or (tonumber(api.version) or 0) < 7 then return nil end
+  local inv = api.inventory
+  return type(inv) == "table" and type(inv.count) == "function" and inv or nil
+end
 
 local BAGS = { 0, 1, 2, 3, 4, 5 }                         -- backpack, four bags, the reagent bag
 local BANK = { -1, 6, 7, 8, 9, 10, 11, 12, -3 }           -- bank, bank bags, reagent bank
@@ -37,6 +48,7 @@ function St.count(bags)
 end
 
 function St.readBags()
+  if St.shared() then return end
   local me = ns.me()
   if not me then return end
   me.bags, me.bagsAt = St.count(BAGS), time()
@@ -44,18 +56,38 @@ function St.readBags()
 end
 
 function St.readBank()
+  if St.shared() then return end
   local me = ns.me()
   if not me then return end
   me.bank, me.bankAt = St.count(BANK), time()
   if ns.onStock then ns.onStock() end
 end
 
--- How many of an item: { bags, bank (this character), alts (your others on this realm or a connected one, same faction:
--- mail crosses neither realms nor factions, so those characters don't count), byChar = { { name, n } } }.
+-- How many of an item: { bags, bank, mail (this character), alts (your others on this realm or a connected one, same
+-- faction: mail crosses neither realms nor factions, so those characters don't count), byChar = { { name, n } } }.
+-- mail is only known with EverlookDB Auctions.
 function St.have(id)
+  local inv = St.shared()
+  if inv then
+    local r = try(inv.count, id)
+    local res = { bags = 0, bank = 0, mail = 0, alts = 0, byChar = {} }
+    for _, e in ipairs(type(r) == "table" and r.chars or {}) do
+      if e.me then
+        res.bags, res.bank, res.mail = e.bags or 0, e.bank or 0, e.mail or 0
+      else
+        local n = (e.bags or 0) + (e.bank or 0) + (e.mail or 0)
+        if n > 0 then
+          res.alts = res.alts + n
+          res.byChar[#res.byChar + 1] = { name = e.name or "?", n = n }
+        end
+      end
+    end
+    table.sort(res.byChar, function(x, y) return x.n > y.n end)
+    return res
+  end
   local db = EverlookCraftDB
   local guid, realms = ns.guid(), ns.mailRealms()
-  local res = { bags = 0, bank = 0, alts = 0, byChar = {} }
+  local res = { bags = 0, bank = 0, mail = 0, alts = 0, byChar = {} }
   for g, c in pairs(db and db.chars or {}) do
     local b, k = (c.bags or {})[id] or 0, (c.bank or {})[id] or 0
     if g == guid then
@@ -72,7 +104,7 @@ end
 -- the amount that counts for planning: bags and bank, plus your alts' unless "don't count my alts" is on
 function St.usable(id)
   local h = St.have(id)
-  return h.bags + h.bank + (ns.settings().noAlts and 0 or h.alts)
+  return h.bags + h.bank + (h.mail or 0) + (ns.settings().noAlts and 0 or h.alts)
 end
 
 -- What counts as "have" on a skill-up route: St.usable, or with "Buy everything for the route" (noOwn) only your
@@ -87,6 +119,11 @@ end
 function St.owned()
   local out = {}
   if ns.settings().noOwn then return out end
+  local inv = St.shared()
+  if inv then
+    local t = try(inv.owned, not ns.settings().noAlts)
+    return type(t) == "table" and t or out
+  end
   local guid, noAlts, realms = ns.guid(), ns.settings().noAlts, ns.mailRealms()
   for g, c in pairs(EverlookCraftDB and EverlookCraftDB.chars or {}) do
     if g == guid or (not noAlts and ns.canMail(c, realms)) then
@@ -96,6 +133,28 @@ function St.owned()
     end
   end
   return out
+end
+
+-- What a character had in its bags when last seen ({ [item] = n }, a copy), for Crafting profit's "can make it now".
+function St.bagsOf(c)
+  if type(c) ~= "table" then return nil end
+  local inv = St.shared()
+  if inv and c.name then
+    local b = try(inv.bagsOf, c.name, c.realmID)
+    if type(b) == "table" then return b end
+  end
+  local out = {}
+  for id, n in pairs(type(c.bags) == "table" and c.bags or {}) do out[id] = n end
+  return out
+end
+
+-- EverlookDB Auctions read new counts: the windows that show them follow
+local listening = false
+function St.listen()
+  local inv = St.shared()
+  if listening or not inv or type(inv.onChange) ~= "function" then return end
+  listening = true
+  pcall(inv.onChange, function() if ns.onStock then pcall(ns.onStock) end end)
 end
 
 local pending = false
@@ -109,6 +168,7 @@ ns.on("BAG_UPDATE_DELAYED", function()
   end)
 end)
 ns.on("PLAYER_ENTERING_WORLD", function()
+  St.listen()
   if EverlookCraftDB then C_Timer.After(3, St.readBags) end
 end)
 ns.on("BANKFRAME_OPENED", function()

@@ -796,5 +796,38 @@ step("rank rows: a book to buy and read, or a quest, where no trainer teaches th
   check(title:find("buy and read", 1, true), "title: " .. title)
 end)
 
+step("stock from EverlookDB Auctions' inventory (API v7): mail counts, alts follow 'don't count my alts', no own counting", function()
+  local me = ns.me()
+  me.bags, me.bank = { [2589] = 1 }, {}
+  local owned
+  EverlookDBAuctionsAPI = { version = 7, inventory = {
+    count = function(id)
+      if id ~= 2589 then return { chars = { { me = true, bags = 0, bank = 0, mail = 0 } } } end
+      return { chars = { { me = true, name = "Me", bags = 20, bank = 5, mail = 3, listed = 40, worn = 0 },
+        { name = "Mara", bags = 0, bank = 10, mail = 2, listed = 0, worn = 0 } } }
+    end,
+    owned = function(withAlts) owned = withAlts; return { [2589] = withAlts and 40 or 28 } end,
+    bagsOf = function(name) if name == "Mara" then return { [2589] = 9 } end end,
+    onChange = function() end,
+  } }
+  local h = ns.stock.have(2589)
+  eq(h.bags, 20, "bags from the shared store"); eq(h.bank, 5, "bank"); eq(h.mail, 3, "mail"); eq(h.alts, 12, "Mara's bank and mail")
+  eq(h.byChar[1].name, "Mara", "by character")
+  eq(ns.stock.usable(2589), 40, "bags, bank, mail and alts; auctions left out")
+  eq(ns.stock.owned()[2589], 40, "the planner's stock")
+  eq(owned, true, "alts asked for")
+  EverlookCraftDB.settings.noAlts = true
+  eq(ns.stock.usable(2589), 28, "alts left out")
+  eq(ns.stock.owned()[2589], 28, "planner without alts")
+  eq(owned, false, "alts not asked for")
+  EverlookCraftDB.settings.noAlts = false
+  eq(ns.stock.bagsOf({ name = "Mara", realmID = 1 })[2589], 9, "an alt's bags for Crafting profit")
+  eq(EverlookCraftAPI.stock(2589).mail, 3, "API stock has mail")
+  ns.stock.readBags()
+  eq(me.bags[2589], 1, "no own counting while the shared store is there")
+  EverlookDBAuctionsAPI = nil
+  eq(ns.stock.have(2589).bags, 1, "without it: the own counts again")
+end)
+
 print(("%d passed, %d failed"):format(passes, #failures))
 return #failures

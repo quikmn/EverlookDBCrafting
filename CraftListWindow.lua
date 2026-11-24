@@ -112,7 +112,8 @@ local function buildRow(list, i)
     else
       pcall(GameTooltip.SetItemByID, GameTooltip, n.id)
       local h = ns.stock.have(n.id)
-      GameTooltip:AddLine(("%d in bags, %d in bank, %d on other characters"):format(h.bags, h.bank, h.alts), 1, 0.82, 0)
+      GameTooltip:AddLine(("%d in bags, %d in bank%s, %d on other characters"):format(h.bags, h.bank,
+        (h.mail or 0) > 0 and (", " .. h.mail .. " in the mail") or "", h.alts), 1, 0.82, 0)
       local p, how, src = ns.prices.unit(n.id)
       GameTooltip:AddLine(p and ("%s each (%s)"):format(ns.money(p), how == "vendor" and "vendor" or src) or "No price yet", 0.8, 0.8, 0.8)
       if n.via and not n.cut then

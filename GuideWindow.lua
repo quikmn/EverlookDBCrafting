@@ -137,7 +137,8 @@ local function itemTooltip(self, row)
   GameTooltip:SetOwner(self, "ANCHOR_LEFT")
   pcall(GameTooltip.SetItemByID, GameTooltip, row.id)
   local h = ns.stock.have(row.id)
-  GameTooltip:AddLine(("Need %d: %d in bags, %d in bank, %d on other characters"):format(row.need, h.bags, h.bank, h.alts), 1, 0.82, 0)
+  GameTooltip:AddLine(("Need %d: %d in bags, %d in bank%s, %d on other characters"):format(row.need, h.bags, h.bank,
+    (h.mail or 0) > 0 and (", " .. h.mail .. " in the mail") or "", h.alts), 1, 0.82, 0)
   for k, c in ipairs(h.byChar) do if k <= 4 then GameTooltip:AddLine(("  %d on %s"):format(c.n, c.name), 0.7, 0.7, 0.7) end end
   if settings().noOwn then GameTooltip:AddLine("\"Buy everything for the route\" is on: only your bags count.", 0.7, 0.7, 0.7, true) end
   local e = row.e or {}

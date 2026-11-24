@@ -62,7 +62,7 @@ end
 function api.stock(item)
   if type(item) ~= "number" or not EverlookCraftDB then return nil end
   local h = ns.stock.have(item)
-  return { bags = h.bags, bank = h.bank, alts = h.alts }
+  return { bags = h.bags, bank = h.bank, mail = h.mail, alts = h.alts }
 end
 
 function api.knownBy(spell)
@@ -193,9 +193,7 @@ end
 function api.bagsOf(key)
   local c = listed(key)
   if not c then return nil end
-  local out = {}
-  for id, n in pairs(type(c.bags) == "table" and c.bags or {}) do out[id] = n end
-  return out
+  return ns.stock.bagsOf(c)
 end
 
 function api.allRecipes()

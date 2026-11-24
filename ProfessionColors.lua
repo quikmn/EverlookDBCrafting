@@ -356,7 +356,7 @@ function M.canMake(mats)
     local id, n = m[1], math.max(1, m[2] or 1)
     local b = itemCount(id, false)
     local h = EverlookCraftDB and ns.stock.have(id)
-    local all = h and (b + (h.bank or 0) + (h.alts or 0)) or itemCount(id, true)
+    local all = h and (b + (h.bank or 0) + (h.mail or 0) + (h.alts or 0)) or itemCount(id, true)
     bags = math.min(bags, math.floor(b / n))
     more = math.min(more, math.floor(math.max(all, b) / n))
   end

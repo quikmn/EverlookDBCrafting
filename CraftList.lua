@@ -124,6 +124,7 @@ function L.whereText(id)
   local parts = {}
   if h.bags > 0 then parts[#parts + 1] = h.bags .. " in bags" end
   if h.bank > 0 then parts[#parts + 1] = h.bank .. " in bank" end
+  if (h.mail or 0) > 0 then parts[#parts + 1] = h.mail .. " in the mail" end
   if not ns.settings().noAlts then
     for i, c in ipairs(h.byChar) do
       if i > 2 then parts[#parts + 1] = ("%d on %d more"):format(h.alts - (h.byChar[1].n + h.byChar[2].n), #h.byChar - 2) break end

@@ -1,5 +1,7 @@
 # EverlookDB Crafting
 
+## Unreleased
+- With EverlookDB Auctions installed, your materials are counted in one place for both addons, and now include what waits in your mailbox and mail you sent to an alt that hasn't been picked up yet. Skill-up routes, the shopping list and the Crafting list take them off what to buy, and tooltips say "3 in the mail".
 ## v0.7.0 (2026-11-24)
 - EverlookDB Auctions can now show recipes you don't know yet in its Crafting profit list (Easy to get, All recipes), with how to learn each one, using this addon's recipe data.
 
