@@ -32,11 +32,17 @@
 --                        skill (skill line), learn, creates, yield, mats = { { item, n } } } } (the server's reagents
 --                        where a profession window showed others); nil for a character it doesn't list
 --   api.bagsOf(key)      (v6) what that character had in its bags when last seen: { [item] = n }; nil as above
+--   api.allRecipes()     (v7) every recipe in the data that makes an item and can be learned on your side: { { spell,
+--                        name, skill (skill line), prof ("Tailoring"), learn, learnKnown, creates, yield, mats = { { item,
+--                        n } }, item (the recipe item, or nil), fee (the trainer's fee in copper, or nil), price (what a
+--                        vendor asks for the recipe item, copper, or nil), tier (0 trainer, 1 teacher or unlimited
+--                        vendor, 2 limited vendor, 3 hard, 9 none), why ("drop", "quest", "rep", ... or ""), trained
+--                        (a trainer teaches it), auto (taught with the rank) } }, by skill line then learn skill
 --
 -- Every call reads what is already saved: nothing is sent anywhere, and the tables returned are copies.
 local _, ns = ...
 
-local api = { version = 6 }
+local api = { version = 7 }
 
 function api.recipe(spell)
   local r = type(spell) == "number" and ns.recipeBySpell(spell)
@@ -189,6 +195,36 @@ function api.bagsOf(key)
   if not c then return nil end
   local out = {}
   for id, n in pairs(type(c.bags) == "table" and c.bags or {}) do out[id] = n end
+  return out
+end
+
+function api.allRecipes()
+  local out = {}
+  local D = ns.DATA
+  if not D then return out end
+  local side = ns.side()
+  for skill in pairs(D.profs) do
+    local rs = ns.recipes(skill)
+    for _, r in ipairs(rs or {}) do
+      local skip = r.skip
+      local why = r.why and r.why[side] or ""
+      if r.creates and r.creates ~= 0 and why ~= "otherSide" and skip ~= "unavailable" and skip ~= "deprecated"
+        and skip ~= "missing" and skip ~= "noMats" then
+        local mats = {}
+        for _, m in ipairs((ns.matsOf(r))) do mats[#mats + 1] = { m[1], m[2] } end
+        local item = r.item and r.item ~= 0 and r.item or nil
+        out[#out + 1] = { spell = r.spell, name = r.name, skill = skill, prof = ns.profName(skill), learn = r.learn,
+          learnKnown = r.learnKnown, creates = r.creates, yield = r.yield, mats = mats, item = item,
+          fee = (tonumber(r.fee) or 0) > 0 and r.fee or nil, price = item and ns.prices and ns.prices.pattern(r) or nil,
+          tier = r.tier and r.tier[side] or 9, why = why or "", trained = r.trained, auto = r.auto }
+      end
+    end
+  end
+  table.sort(out, function(a, b)
+    if a.skill ~= b.skill then return a.skill < b.skill end
+    if (a.learn or 0) ~= (b.learn or 0) then return (a.learn or 0) < (b.learn or 0) end
+    return a.spell < b.spell
+  end)
   return out
 end
 

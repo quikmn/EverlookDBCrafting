@@ -1,5 +1,8 @@
 # EverlookDB Crafting
 
+## Unreleased
+- EverlookDB Auctions can now show recipes you don't know yet in its Crafting profit list (Easy to get, All recipes), with how to learn each one, using this addon's recipe data.
+
 ## v0.6.3 (2026-11-24)
 - Recipe data refreshed: over 200 more patterns (Blacksmithing, First Aid and others) now show where they drop, as seen by players.
 

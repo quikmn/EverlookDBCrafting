@@ -263,7 +263,15 @@ step("guild: a member's lists are put together from their parts; who knows a rec
   eq(who[1], "Anna", "short name")
   local api = EverlookCraftAPI.guildKnows(2963)
   eq(api[1], "Anna", "api.guildKnows")
-  eq(EverlookCraftAPI.version, 6, "api version")
+  eq(EverlookCraftAPI.version, 7, "api version")
+  -- v7: every recipe, with how it is learned
+  local all = EverlookCraftAPI.allRecipes()
+  check(#all > 100, "allRecipes lists the data's recipes: " .. #all)
+  local bolt
+  for _, r in ipairs(all) do if r.spell == 2963 then bolt = r end end
+  check(bolt ~= nil and bolt.creates == 2996 and bolt.prof == "Tailoring" and bolt.tier == 0 and #bolt.mats >= 1,
+    "Bolt of Linen Cloth: a trainer recipe of Tailoring with its materials")
+  for _, r in ipairs(all) do check(r.why ~= "otherSide", "a recipe of the other side listed: " .. r.name) break end
   check(has(tip(BOLT, false), "^Guild can make this"), "guild line on the crafted item")
 end)
 

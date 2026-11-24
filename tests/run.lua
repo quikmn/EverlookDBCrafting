@@ -611,7 +611,7 @@ end)
 
 step("API v6: characters, recipesOf, bagsOf (this realm and faction only, copies)", function()
   local api = EverlookCraftAPI
-  eq(api.version, 6, "version")
+  eq(api.version, 7, "version")
   local db = EverlookCraftDB
   local saved = db.chars
   local me = ns.guid()
