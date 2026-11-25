@@ -47,7 +47,7 @@ Level your professions the cheap and reliable way on WoW Forever. Type `/ecraft`
 | `/ecraft` | the settings window; the search box finds any setting |
 | `/ecraft plan [profession]` | the planner, e.g. `/ecraft plan tailoring` |
 | `/ecraft guide` | open or close the guide |
-| `/ecraft queue` | the crafting queue (`add <recipe> [count]`, `keep <recipe> <count>`, `next`, `clear`) |
+| `/ecraft queue` | the crafting queue; also `queue add`, `queue keep`, `queue next`, `queue clear` (see `/ecraft help`) |
 | `/ecraft recipes [words]` | the recipe browser |
 | `/ecraft favor` | Merchant's Favor |
 | `/ecraft colors [on \| off]` | the profession window colours |
