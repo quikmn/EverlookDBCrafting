@@ -45,7 +45,9 @@ function LW.rootDetail(n)
   local L = ns.craftList
   local e = L.find(n.spell) or { spell = n.spell, n = n.n }
   local st = L.status(e, n.r)
-  local parts = { ns.profName(n.r.skill), ("makes %d"):format(n.makes) }
+  -- "makes N" only when a craft makes more than one (else it is the count beside it; the tooltip says it too)
+  local parts = { ns.profName(n.r.skill) }
+  if n.makes ~= n.n then parts[#parts + 1] = ("makes %d"):format(n.makes) end
   parts[#parts + 1] = ("|cff%s%s|r"):format(STATUS_COLOR[st.key] or "8d94a3", st.text)
   local p = L.profitEach(n.r)
   if p then parts[#parts + 1] = (p >= 0 and "profit " or "loss ") .. ns.money(math.abs(p)) .. " each" end
@@ -279,7 +281,7 @@ end
 local function make()
   if f then return f end
   f = ns.widgets.Window({ name = "EverlookCraftList", posKey = "list", title = "Crafting queue", icon = "list",
-    width = 600, height = 560, minWidth = 520, minHeight = 360, point = "CENTER", x = -220, y = 20,
+    width = 700, height = 560, minWidth = 520, minHeight = 360, point = "CENTER", x = -220, y = 20,
     hint = "Right-click a material: craft or buy. Craft next in your profession window goes top to bottom." })
   T = f.T
   f.list = ns.widgets.VList(f.body, T, ROW_H, buildRow, paintRow, 3,

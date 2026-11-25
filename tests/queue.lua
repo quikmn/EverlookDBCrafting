@@ -350,6 +350,7 @@ step("the queue window: status and profit on a recipe, a Keep box", function()
   local root = ns.listWindow.rows()[1]
   local d = ns.listWindow.rootDetail(root)
   check(d:find("ready", 1, true) and d:find("profit", 1, true), "detail: " .. d)
+  check(not d:find("makes", 1, true), "no \"makes 2\" beside a count of 2: " .. d)
   L.setKeep(BOLT_SPELL, 20)
   d = ns.listWindow.rootDetail(ns.listWindow.rows()[1])
   check(d:find("of 20 in stock", 1, true), "stock in the detail: " .. d)
