@@ -1,6 +1,6 @@
 # EverlookDB Crafting
 
-## Unreleased
+## v0.9.0 (2026-11-25)
 - New: one crafting queue. The Crafting list is now the crafting queue, and EverlookDB Auctions' Crafting profit uses the same queue: queue a recipe there with a click and it shows up here, and the other way round.
 - Queue from anywhere: "Add to queue" in the recipe browser, right-click a recipe in your profession window (queue 1, 5, 10 or all you can make), "Queue next steps" in the skill-up guide (this step and the next two, as many crafts as each still takes), or `/ecraft queue add <recipe> [count]`.
 - Craft next: a button under your profession window says what comes next, like "Craft next: 5 Bolt of Silk Cloth". Each click crafts the first recipe in the queue that is ready (you know it and the materials are in your bags), skips the ones without materials, and ticks them off as they're made. It never crafts by itself, and waits while you're casting or in combat.
