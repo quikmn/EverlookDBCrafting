@@ -3,7 +3,9 @@
 -- shopping list (every material: have / need on your characters, its cost, auction house, vendor with Map or Buy at
 -- an open merchant, or make it; the patterns to learn), what the crafts take from your bags (shrinks as you craft),
 -- and every step with the rank trainings and tools. A section ticks green when it is done; right-click a step to mark
--- it done or not. "Send to auction house" puts the auction house part on a shopping list there.
+-- it done or not. "Send to auction house" puts the auction house part on a shopping list there. "Queue next steps"
+-- puts the current step and the two after it in the crafting queue (as many crafts as each still takes), so Craft
+-- next in the profession window walks the route.
 -- Crafting stays with the game: "Show recipe" selects the step's recipe in your profession window.
 local _, ns = ...
 
@@ -113,6 +115,37 @@ function G.send()
   end
   local ok, msg = ns.craftList.sendList(name, items, said)
   if ok == nil then ns.print("loading item names, one moment...") else said(ok, msg) end
+end
+
+-- The current step and the next ones (count, default 3) into the crafting queue, with the crafts each still takes
+-- (the safe number when the buffer is on). A step already queued with at least that many isn't added twice.
+-- Returns how many steps were queued.
+function G.queueNext(count)
+  local rt = route()
+  if not rt or not ns.craftList then return 0 end
+  local skillNow = ns.plans.skillNow(rt.skill)
+  local i = ns.plans.currentStep(rt, skillNow)
+  if not i then
+    ns.print("the route is done: nothing to queue.")
+    return 0
+  end
+  local done = EverlookCraftChar.done[rt.skill] or {}
+  local said, n = {}, 0
+  for k = i, #rt.steps do
+    if n >= (count or 3) then break end
+    local st = rt.steps[k]
+    if not done[k] and not (skillNow and skillNow >= st.to) then
+      local a, b = ns.plans.craftsLeft(rt, st, skillNow and math.max(st.from, skillNow) or st.from)
+      local crafts = settings().buffer and b or a
+      local r = ns.plans.recipe(rt.skill, st.spell)
+      if crafts and crafts > 0 and ns.craftList.atLeast(st.spell, crafts) then
+        n = n + 1
+        said[#said + 1] = ("%d %s"):format(crafts, r and r.name or ("spell " .. st.spell))
+      end
+    end
+  end
+  if n > 0 then ns.print("in the crafting queue: " .. table.concat(said, ", ") .. ". Craft next in your profession window crafts them.") end
+  return n
 end
 
 ---------------------------------------------------------------------------------------------------------------------
@@ -440,8 +473,8 @@ local function makeFrame()
   f.list:SetPoint("RIGHT", -PAD, 0)
   f.rows = {}
   f.hint = text(f, T.fontSmall, T.muted)
-  f.hint:SetPoint("BOTTOMLEFT", PAD + 2, 10)
-  f.hint:SetPoint("RIGHT", -PAD - 150, 0)
+  f.hint:SetPoint("BOTTOMLEFT", PAD + 2, 34)
+  f.hint:SetPoint("RIGHT", -PAD, 0)
   f.hint:SetText("Right-click a step: done / not done. Mouse wheel scrolls.")
   -- what is left to buy at the auction house, as a shopping list there (EverlookDB Auctions, else Auctionator)
   f.send = UI.Button(f, "Send to auction house", function() G.send() end, 146)
@@ -449,6 +482,11 @@ local function makeFrame()
   U.SetFont(f.send.label, T.fontSmall)
   f.send:SetPoint("BOTTOMRIGHT", -PAD, 8)
   UI.Tooltip(f.send, "Send to auction house", "Puts what the route still needs from the auction house on a shopping list in EverlookDB Auctions (else Auctionator), with the amounts.")
+  f.queue = UI.Button(f, "Queue next steps", function() G.queueNext(3) end, 124)
+  f.queue:SetHeight(20)
+  U.SetFont(f.queue.label, T.fontSmall)
+  f.queue:SetPoint("BOTTOMRIGHT", f.send, "BOTTOMLEFT", -6, 0)
+  UI.Tooltip(f.queue, "Queue next steps", "Puts this step and the next two in your crafting queue, with the crafts each still takes. Then Craft next in your profession window crafts them, one click at a time.")
 
   UI.CloseOnEscape(f)
   local pos = EverlookCraftDB and EverlookCraftDB.guidePos
@@ -496,6 +534,7 @@ function G.render()
     f.sub:SetText("No route yet: /ecraft plan")
     f.card:Hide()
     for _, r in ipairs(f.rows) do r:Hide() end
+    f.queue:SetUsable(false)
     f:SetHeight(120)
     return
   end
@@ -541,9 +580,12 @@ function G.render()
   end
   for i = shown + 1, #f.rows do f.rows[i]:Hide() end
   f.list:SetHeight(shown * ROW)
-  f:SetHeight(-top + shown * ROW + 38)
+  f:SetHeight(-top + shown * ROW + 56)
   local items = G.shop and ns.plans.auctionItems(G.shop) or {}
   f.send:SetShown(ns.craftList.shoppingTarget() ~= nil)
+  f.queue:ClearAllPoints()
+  if f.send:IsShown() then f.queue:SetPoint("BOTTOMRIGHT", f.send, "BOTTOMLEFT", -6, 0) else f.queue:SetPoint("BOTTOMRIGHT", -PAD, 8) end
+  f.queue:SetUsable(cst ~= nil)
   f.send:SetUsable(#items > 0)
 end
 

@@ -38,11 +38,28 @@
 --                        vendor asks for the recipe item, copper, or nil), tier (0 trainer, 1 teacher or unlimited
 --                        vendor, 2 limited vendor, 3 hard, 9 none), why ("drop", "quest", "rep", ... or ""), trained
 --                        (a trainer teaches it), auto (taught with the rank) } }, by skill line then learn skill
+--   The crafting queue (v8): this addon owns it (account wide, this PC only); EverlookDB Auctions reads and writes it.
+--   api.queue()          { { spell, name, n (crafts to go), keep (how many to keep in stock, or nil), creates, yield,
+--                        skill, prof, mats = { { item, n } }, status ("ready", "materials", "skill", "cooldown",
+--                        "stocked"), statusText ("ready: 3 now"), can (crafts the bags allow now), profit (one craft
+--                        after the 5% cut, or nil) } }, in queue order (Craft next goes top to bottom)
+--   api.queueCount(spell) crafts queued of a recipe (0 when it isn't queued)
+--   api.queueAdd(spell, n) adds n crafts (an entry already there grows); true, or false for a recipe the data lacks
+--   api.queueSet(spell, n) sets the count (0 takes it off, unless it is kept in stock); adds the recipe when missing
+--   api.queueRemove(spell) takes a recipe off the queue
+--   api.queueKeep(spell, n) keep n of its item in stock (0 or nil: off): the count refills itself from what you have
+--   api.queueClear()     empties the queue
+--   api.queueMissing()   what the whole queue still needs to buy, after what you have on every character (shared out
+--                        in queue order; materials you can make broken down, as the queue window shows them):
+--                        { { item, n, vendor (a vendor sells it) } }
+--   api.onQueue(fn)      fn() after the queue changes (an add, a craft, a refill)
+--   api.openQueue()      opens the queue window
 --
--- Every call reads what is already saved: nothing is sent anywhere, and the tables returned are copies.
+-- Every call reads what is already saved (the queue calls write only the queue): nothing is sent anywhere, and the
+-- tables returned are copies.
 local _, ns = ...
 
-local api = { version = 7 }
+local api = { version = 8 }
 
 function api.recipe(spell)
   local r = type(spell) == "number" and ns.recipeBySpell(spell)
@@ -224,6 +241,74 @@ function api.allRecipes()
     return a.spell < b.spell
   end)
   return out
+end
+
+local function recipeOf(spell) return type(spell) == "number" and ns.recipeBySpell(spell) or nil end
+
+function api.queue()
+  local out = {}
+  local L = ns.craftList
+  if not L or not EverlookCraftDB then return out end
+  for _, e in ipairs(L.entries()) do
+    local r = recipeOf(e.spell)
+    if r then
+      local mats = {}
+      for _, m in ipairs((ns.matsOf(r))) do mats[#mats + 1] = { m[1], m[2] } end
+      local st = L.status(e, r)
+      out[#out + 1] = { spell = r.spell, name = r.name, n = e.n, keep = e.keep, creates = r.creates ~= 0 and r.creates or nil,
+        yield = r.yield or 1, skill = r.skill, prof = ns.profName(r.skill), mats = mats, status = st.key,
+        statusText = st.text, can = st.can or 0, profit = L.profitEach(r) }
+    end
+  end
+  return out
+end
+
+function api.queueCount(spell)
+  local e = ns.craftList and EverlookCraftDB and type(spell) == "number" and ns.craftList.find(spell)
+  return e and e.n or 0
+end
+
+function api.queueAdd(spell, n)
+  if not ns.craftList or not recipeOf(spell) then return false end
+  return (ns.craftList.add(spell, n)) and true or false
+end
+
+function api.queueSet(spell, n)
+  local L = ns.craftList
+  if not L or not recipeOf(spell) then return false end
+  n = math.floor(tonumber(n) or 0)
+  if L.find(spell) then return L.set(spell, n) and true or false end
+  if n <= 0 then return true end
+  return (L.add(spell, n)) and true or false
+end
+
+function api.queueRemove(spell)
+  if not ns.craftList or type(spell) ~= "number" then return false end
+  return ns.craftList.remove(spell) and true or false
+end
+
+function api.queueKeep(spell, n)
+  if not ns.craftList or not recipeOf(spell) then return false end
+  return (ns.craftList.setKeep(spell, n)) and true or false
+end
+
+function api.queueClear()
+  if ns.craftList and EverlookCraftDB then ns.craftList.clear() end
+end
+
+function api.queueMissing()
+  local out = {}
+  if not ns.craftList or not EverlookCraftDB then return out end
+  for _, m in ipairs(ns.craftList.tree().missing) do out[#out + 1] = { m.id, m.n, vendor = m.vendor and true or false } end
+  return out
+end
+
+function api.onQueue(fn)
+  if type(fn) == "function" and ns.craftList then table.insert(ns.craftList.listeners, fn) end
+end
+
+function api.openQueue()
+  if ns.listWindow then ns.listWindow.open() end
 end
 
 function api.embedFavor(parent)

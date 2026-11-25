@@ -111,7 +111,7 @@ function S.scan()
     return nil
   end
   local rs = ns.recipes(skill)
-  local known, n = {}, 0
+  local known, n, twin = {}, 0, {}
   local fixes = EverlookCraftDB.fixes
   for _, id in ipairs(ids) do
     local info = try(T.GetRecipeInfo, id)
@@ -119,6 +119,7 @@ function S.scan()
       local r = rs and rs.bySpell[id]
       local spell = r and r.spell or id
       known[spell], n = true, n + 1
+      if spell ~= id then twin[spell] = id end   -- the window's own ID for a twin (Craft next casts that one)
       if r then
         local list = windowReagents(T, id)
         if list and #list > 0 then
@@ -132,6 +133,7 @@ function S.scan()
   if not me then return nil end
   local rec = me.profs[skill] or {}
   rec.known, rec.at = known, time()
+  rec.ids = next(twin) and twin or nil
   rec.rank = plain(base.skillLevel) or rec.rank
   rec.max = plain(base.maxSkillLevel) or rec.max
   me.profs[skill] = rec
@@ -165,6 +167,21 @@ for _, e in ipairs({ "PLAYER_LOGIN", "SKILL_LINES_CHANGED" }) do
     S.updateSkills()
     if ns.onSkills then ns.onSkills() end
   end)
+end
+
+-- The profession your own window shows right now (its skill line), or nil: no window, or someone else's (a link, a
+-- guild list, an NPC crafting for you).
+function S.openSkill()
+  local T = C_TradeSkillUI
+  if not (T and T.GetBaseProfessionInfo) then return nil end
+  local shown = rawget(_G, "ProfessionsFrame")
+  if shown and shown.IsShown and not shown:IsShown() then return nil end
+  if try(T.IsTradeSkillLinked) or try(T.IsTradeSkillGuild) or try(T.IsNPCCrafting) then return nil end
+  local base = try(T.GetBaseProfessionInfo)
+  if type(base) ~= "table" then return nil end
+  local name = plain(base.professionName)
+  if not name or name == "" or not isMine(name) then return nil end
+  return professionOf(base)
 end
 
 -- the known recipes and skill of this character in a profession

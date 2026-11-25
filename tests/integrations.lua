@@ -263,7 +263,7 @@ step("guild: a member's lists are put together from their parts; who knows a rec
   eq(who[1], "Anna", "short name")
   local api = EverlookCraftAPI.guildKnows(2963)
   eq(api[1], "Anna", "api.guildKnows")
-  eq(EverlookCraftAPI.version, 7, "api version")
+  eq(EverlookCraftAPI.version, 8, "api version")
   -- v7: every recipe, with how it is learned
   local all = EverlookCraftAPI.allRecipes()
   check(#all > 100, "allRecipes lists the data's recipes: " .. #all)
@@ -556,16 +556,16 @@ step("merchant: one item for another window (buyItem), never more than asked, no
   eq(M.buyItem(THREAD, 1), nil, "bought at a closed merchant")
 end)
 
-step("tooltip, material on the Crafting list: how many more the list needs (when the list is there)", function()
+step("tooltip, material in the crafting queue: how many more the queue needs (when the list is there)", function()
   local L = ns.craftList
   if not (L and L.add) then print("         (no Crafting list in this build: skipped)") return end
   L.add(2963, 10)
   local lines = tip(LINEN, false)
-  local l = has(lines, "^Crafting list")
+  local l = has(lines, "^Crafting queue")
   check(l and l:find("more", 1, true), "list line: " .. table.concat(lines, " / "))
   L.clear()
   MOCK.time = MOCK.time + 2
-  check(not has(tip(LINEN, false), "^Crafting list"), "list line with an empty list")
+  check(not has(tip(LINEN, false), "^Crafting queue"), "list line with an empty list")
 end)
 
 step("settings pages build: Tooltips, Guild, Trainers and merchants", function()

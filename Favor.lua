@@ -246,7 +246,7 @@ function F.addToList(res)
   local r, n = F.craftNeed(res)
   if not r then return false, "the cheapest bundle is bought, not crafted." end
   ns.craftList.add(r.spell, n)
-  return true, ("%s: %d on the Crafting list."):format(r.name, (ns.craftList.find(r.spell) or { n = n }).n)
+  return true, ("%s: %d in the crafting queue."):format(r.name, (ns.craftList.find(r.spell) or { n = n }).n)
 end
 
 -- Send what to buy for a crate to EverlookDB Auctions' shopping list "Merchant's Favor". true, or false and why.

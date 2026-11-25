@@ -3,7 +3,7 @@
 -- the left (a quality edge, the learn skill, marks for you and your other characters, a star); the chosen recipe on the
 -- right: its skill colours and your chance now, what you can make with your bags, each reagent with where it comes from
 -- (Map to the nearest vendor), how to learn it ("source unknown" said plainly), and which of your characters know it.
--- One filled button: add it to the Crafting list.
+-- One filled button: add it to the crafting queue.
 local _, ns = ...
 
 local UI = LibStub("EverlookUI-1")
@@ -368,7 +368,7 @@ function BW.paintPrimary(r)
   local p = f and f.primary
   if not p then return end
   local e = r and ns.craftList.find(r.spell)
-  p:SetText(e and ("On the list (x%d): add 1"):format(e.n) or "Add to crafting list")
+  p:SetText(e and ("In the queue (x%d): add 1"):format(e.n) or "Add to queue")
   p:SetUsable(r ~= nil)
 end
 
@@ -466,12 +466,12 @@ local function make()
   pane.child:SetWidth(math.max(200, (f:GetWidth() or 860) - 32 - LIST_W - 18 - 18))
   f.pane = pane
 
-  f:SetPrimary("Add to crafting list", function()
+  f:SetPrimary("Add to queue", function()
     local r = BW.selected and ns.recipeBySpell(BW.selected)
     if not r then return end
     ns.craftList.add(r.spell, 1)
     local e = ns.craftList.find(r.spell)
-    ns.print(("%s: %d on the Crafting list."):format(r.name, e and e.n or 1))
+    ns.print(("%s: %d in the crafting queue."):format(r.name, e and e.n or 1))
     if ns.listWindow then ns.listWindow.open() end
     BW.paintPrimary(r)
   end, 190)

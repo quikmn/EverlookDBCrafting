@@ -606,13 +606,13 @@ app:Section("recipes", "Recipes", function(stack)
   UI.Note(stack, "\"Source unknown\" means no trainer, vendor, drop or quest for the recipe is in EverlookDB's data yet: the addon never guesses one. A learn skill marked ~ is an estimate.")
 end, { icon = "book", desc = "Every recipe of a profession, learned or not: search by name or reagent, where each reagent comes from, how to learn it, and which of your characters know it." })
 
-app:Section("list", "Crafting list", function(stack)
-  UI.Header(stack, "Crafting list")
+app:Section("list", "Crafting queue", function(stack)
+  UI.Header(stack, "Crafting queue")
   UI.ButtonRow(stack, {
-    { label = "Open crafting list", width = 180, style = "accent", onClick = function() ns.listWindow.open() end,
-      desc = "Its own window: it stays open when this one closes.", keywords = { "plan", "craft list", "shopping", "materials" } },
+    { label = "Open crafting queue", width = 180, style = "accent", onClick = function() ns.listWindow.open() end,
+      desc = "Its own window: it stays open when this one closes.", keywords = { "plan", "queue", "craft list", "crafting list", "shopping", "materials", "craft next", "keep in stock", "restock" } },
   })
-  UI.Stat(stack, "On your list", function()
+  UI.Stat(stack, "In your queue", function()
     local tree = ns.craftList.tree()
     if #tree.roots == 0 then return "|cff8d94a3nothing yet|r" end
     return ("%d recipe%s, %d material%s to buy"):format(#tree.roots, #tree.roots == 1 and "" or "s", #tree.missing, #tree.missing == 1 and "" or "s")
@@ -623,8 +623,8 @@ app:Section("list", "Crafting list", function(stack)
     if api then return "|cffffd100update EverlookDB Auctions for shopping lists|r" end
     return "|cff8d94a3EverlookDB Auctions not installed|r"
   end)
-  UI.Note(stack, "Each craft of a listed recipe takes one off its count. Materials you can make break down into their own materials when one of your characters knows the recipe; right-click one in the list to buy it instead. Vendor goods have a Map button to the nearest vendor and stay off the shopping list. \"Send missing to Auctions\" saves the rest as the shopping list \"Crafting list\" in EverlookDB Auctions (else Auctionator).")
-end, { icon = "list", desc = "Plan what to craft: every material, what you have in bags, bank and on your other characters, craft or buy, and what is missing." })
+  UI.Note(stack, "One queue for everything you plan to craft: add to it from the recipe browser, by right-clicking a recipe in your profession window, with \"Queue next steps\" in the skill-up guide, and from Crafting profit in EverlookDB Auctions (it shares this queue). In the profession window, the button \"Craft next\" under it crafts the first recipe that is ready, skipping those without materials; each craft takes one off its count. Keep: how many of an item to keep in stock; the count then refills itself, counting bags, bank, mail, alts and auctions. Materials you can make break down into their own materials when one of your characters knows the recipe; right-click one in the queue to buy it instead. Vendor goods have a Map button to the nearest vendor and stay off the shopping list. \"Send missing to Auctions\" saves the rest as the shopping list \"Crafting queue\" in EverlookDB Auctions (else Auctionator); its Buy materials buys for the whole queue.")
+end, { icon = "list", desc = "Queue what to craft: every material, what you have in bags, bank, mail and on your other characters, craft or buy, what is missing, and Craft next in the profession window." })
 
 setting("favor.bags", "favorBagsFree", "Merchant's Favor: count my bags as free",
   "Crates and materials you have on your characters cost nothing in the Merchant's Favor ranking. Off: they count at their auction price.",
@@ -741,7 +741,7 @@ app:Section("about", "About", function(stack)
   UI.Note(stack, "WoW Forever client data, classic-db (CMaNGOS, GPL-3.0), Efficient Games' EG Link (CC BY 4.0, changed by EverlookDB) and AllTheThings (MIT, changed by EverlookDB). Prices: EverlookDB Auctions or Auctionator, on your PC.")
   UI.Stat(stack, "Data build", function() return ns.DATA and ns.DATA.build or "?" end)
   UI.Header(stack, "Chat commands")
-  UI.Note(stack, "/ecraft  this window (also /eprof)\n/ecraft plan [profession]  the planner\n/ecraft guide  the guide window\n/ecraft recipes [words]  the recipe browser, searching for words\n/ecraft list  the Crafting list\n/ecraft list add <recipe> [count]  put a recipe on it\n/ecraft list clear  empty it\n/ecraft favor  Waylaid Crates ranked by gold per Merchant's Favor\n/ecraft colors [on | off]  the profession window colours (was CraftColors)\n/ecraft skillcards [on | off | move | reset | test]  the skill-up cards\n/ecraft status  what the addon knows\n/ecraft search <words>  find a setting\n/ecraft help  all of this in chat")
+  UI.Note(stack, "/ecraft  this window (also /eprof)\n/ecraft plan [profession]  the planner\n/ecraft guide  the guide window\n/ecraft recipes [words]  the recipe browser, searching for words\n/ecraft queue  the crafting queue (also /ecraft list)\n/ecraft queue add <recipe> [count]  queue a recipe\n/ecraft queue keep <recipe> <count>  keep that many in stock (0: off)\n/ecraft queue next  queue the guide's next steps\n/ecraft queue clear  empty it\n/ecraft favor  Waylaid Crates ranked by gold per Merchant's Favor\n/ecraft colors [on | off]  the profession window colours (was CraftColors)\n/ecraft skillcards [on | off | move | reset | test]  the skill-up cards\n/ecraft status  what the addon knows\n/ecraft search <words>  find a setting\n/ecraft help  all of this in chat")
 end, { icon = "info" })
 
 ---------------------------------------------------------------------------------------------------------------------
@@ -772,7 +772,7 @@ app:Command("recipes", "recipes [words]", "the recipe browser, searching for a r
   ns.browserWindow.open(nil, rest)
 end, { "recipe", "browser", "browse" })
 
-app:Command("list", "list [add <recipe> [count] | clear]", "the Crafting list", function(rest)
+app:Command("queue", "queue [add <recipe> [count] | keep <recipe> <count> | next | clear]", "the crafting queue", function(rest)
   rest = U.Trim(rest or "")
   local verb, args = rest:match("^(%S+)%s*(.*)$")
   verb = verb and verb:lower()
@@ -783,15 +783,26 @@ app:Command("list", "list [add <recipe> [count] | clear]", "the Crafting list", 
     if not r then app:Print(("no recipe called \"%s\"."):format(name)) return end
     ns.craftList.add(r.spell, tonumber(n) or 1)
     local e = ns.craftList.find(r.spell)
-    app:Print(("%s: %d on the Crafting list."):format(r.name, e and e.n or 1))
+    app:Print(("%s: %d in the crafting queue."):format(r.name, e and e.n or 1))
     ns.listWindow.open()
+  elseif verb == "keep" then
+    local name, n = args:match("^(.-)%s+(%d+)$")
+    local r = name and ns.browser.findByName(name)
+    if not r then app:Print("/ecraft queue keep <recipe> <count>, like: keep bolt of silk cloth 20") return end
+    if not ns.craftList.setKeep(r.spell, tonumber(n)) then app:Print(r.name .. " makes no item to keep.") return end
+    local e = ns.craftList.find(r.spell)
+    app:Print(e and e.keep and ("keeping %d of %s: %d to craft now."):format(e.keep, r.name, e.n)
+      or ("%s: no longer kept in stock."):format(r.name))
+    ns.listWindow.open()
+  elseif verb == "next" then
+    if ns.guide then ns.guide.queueNext(3) end
   elseif verb == "clear" then
     ns.craftList.clear()
-    app:Print("the Crafting list is empty.")
+    app:Print("the crafting queue is empty.")
   else
     ns.listWindow.toggle()
   end
-end, { "craft", "craftlist" })
+end, { "list", "craft", "craftlist" })
 
 app:Command("favor", "favor", "Merchant's Favor: Waylaid Crates ranked by gold per Favor", function()
   ns.favorWindow.toggle()
@@ -806,7 +817,7 @@ app:StatusLines(function()
   local lines = { ("%d characters, %d professions read. Prices: %s."):format(chars, profs,
     ns.prices.auctionsLoaded() and "EverlookDB Auctions" or ns.prices.auctionatorLoaded() and "Auctionator" or "none (vendor goods only)") }
   local list = ns.craftList.entries()
-  if #list > 0 then lines[#lines + 1] = ("Crafting list: %d recipes."):format(#list) end
+  if #list > 0 then lines[#lines + 1] = ("Crafting queue: %d recipes."):format(#list) end
   for skill, r in pairs(EverlookCraftChar and EverlookCraftChar.routes or {}) do
     lines[#lines + 1] = ("Route: %s %d to %d, %d steps."):format(ns.profName(skill), r.from, r.to, #r.steps)
   end

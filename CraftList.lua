@@ -1,5 +1,9 @@
--- The Crafting list: what you plan to craft, account wide (EverlookCraftDB.list, this PC only). Each entry is a recipe
--- and how many times to craft it. The material tree breaks every recipe into its materials and, for a material one of
+-- The crafting queue (once the Crafting list): what you plan to craft, account wide (EverlookCraftDB.list, this PC
+-- only). EverlookDB Auctions reads and writes it through the API (EverlookCraftAPI v8: its Crafting profit queues here,
+-- its Buy materials buys what the whole queue misses). Each entry is a recipe and how many times to craft it, and
+-- optionally how many of its item to keep in stock (keep): such an entry's count is what is missing of the item
+-- everywhere (bags, bank, mail, alts, your auctions) and refills itself. Each entry has a status (ready, need
+-- materials, need skill, on cooldown); QueueButton.lua's "Craft next" crafts the first ready one. The material tree breaks every recipe into its materials and, for a material one of
 -- your characters can make (a bolt, a bar), into that recipe's materials, unless you tick it to buy. What you own on
 -- every character is shared out in list order, so a stack counts once. A recipe that would feed itself (a transmute
 -- loop) is cut. Vendor goods are marked, with the nearest vendor; the rest of what is missing can go to EverlookDB
@@ -30,32 +34,237 @@ function L.find(spell)
   end
 end
 
--- add n crafts of a recipe (an entry that is there already grows); false when the data has no such recipe
+-- the queue changed: this addon's windows, then whoever listens through the API (EverlookDB Auctions)
+L.listeners = {}
+local function changed()
+  if ns.onList then ns.onList() end
+  for _, fn in ipairs(L.listeners) do pcall(fn) end
+end
+L.changed = changed
+
+-- add n crafts of a recipe (an entry that is there already grows; one kept in stock keeps n crafts' more);
+-- false when the data has no such recipe
 function L.add(spell, n)
   local r = type(spell) == "number" and ns.recipeBySpell(spell)
   if not r or not db() then return false end
   n = math.max(1, math.floor(tonumber(n) or 1))
   local e = L.find(r.spell)
-  if e then e.n = e.n + n else table.insert(L.entries(), { spell = r.spell, n = n }) end
-  if ns.onList then ns.onList() end
+  if e and e.keep then
+    e.keep = e.keep + n * (r.yield or 1)
+    L.restock()
+  elseif e then
+    e.n = e.n + n
+  else
+    table.insert(L.entries(), { spell = r.spell, n = n })
+  end
+  changed()
   return true, r
 end
 
--- set the count; 0 or less takes the recipe off the list
+-- at least n crafts of a recipe (the skill-up route's steps: pressing it again doesn't add them twice)
+function L.atLeast(spell, n)
+  local r = type(spell) == "number" and ns.recipeBySpell(spell)
+  if not r or not db() then return false end
+  n = math.max(1, math.floor(tonumber(n) or 1))
+  local e = L.find(r.spell)
+  if e and e.n >= n then return true, r end
+  if e then e.n = n else table.insert(L.entries(), { spell = r.spell, n = n }) end
+  changed()
+  return true, r
+end
+
+-- set the count; 0 or less takes the recipe off the list (one kept in stock stays, at 0, until it is removed)
 function L.set(spell, n)
   local e, i = L.find(spell)
   if not e then return false end
   n = math.floor(tonumber(n) or 0)
-  if n <= 0 then table.remove(L.entries(), i) else e.n = n end
-  if ns.onList then ns.onList() end
+  if n <= 0 and not e.keep then table.remove(L.entries(), i) else e.n = math.max(0, n) end
+  changed()
   return true
 end
 
-function L.remove(spell) return L.set(spell, 0) end
+function L.remove(spell)
+  local e, i = L.find(spell)
+  if not e then return false end
+  table.remove(L.entries(), i)
+  changed()
+  return true
+end
 
 function L.clear()
   if db() then db().list = {} end
-  if ns.onList then ns.onList() end
+  changed()
+end
+
+---------------------------------------------------------------------------------------------------------------------
+-- Keep N in stock
+
+-- Everything you have of an item, for "keep in stock": bags, bank, mail (and mail on its way), your other characters
+-- and your auctions. With EverlookDB Auctions its inventory (it knows mail and auctions), else this addon's count.
+function L.stockOf(item)
+  local inv = ns.stock.shared()
+  if inv then
+    local res = try(inv.count, item)
+    local n = 0
+    for _, c in ipairs(type(res) == "table" and type(res.chars) == "table" and res.chars or {}) do
+      n = n + (tonumber(c.bags) or 0) + (tonumber(c.bank) or 0) + (tonumber(c.mail) or 0) + (tonumber(c.listed) or 0)
+    end
+    return n
+  end
+  local h = ns.stock.have(item)
+  return h.bags + h.bank + (h.mail or 0) + h.alts
+end
+
+-- How many of a recipe's item to keep (nil or 0: off). A recipe that isn't queued yet is added. false for a recipe
+-- that makes no item (an enchant) or isn't in the data.
+function L.setKeep(spell, keep)
+  local r = type(spell) == "number" and ns.recipeBySpell(spell)
+  if not r or not db() then return false end
+  keep = math.floor(tonumber(keep) or 0)
+  local e, i = L.find(r.spell)
+  if keep <= 0 then
+    if e then
+      e.keep = nil
+      if e.n <= 0 then table.remove(L.entries(), i) end
+    end
+  else
+    if not r.creates or r.creates == 0 then return false end
+    if not e then
+      e = { spell = r.spell, n = 0 }
+      table.insert(L.entries(), e)
+    end
+    e.keep = keep
+    L.restock()
+  end
+  changed()
+  return true, r
+end
+
+-- Entries kept in stock: their count is what is missing, in crafts (the item's count over the recipe's yield). true
+-- when a count changed. Runs when what you have changes, so a stale count puts itself right on the next read.
+function L.restock()
+  local moved = false
+  for _, e in ipairs(L.entries()) do
+    local r = e.keep and ns.recipeBySpell(e.spell)
+    if r and r.creates and r.creates ~= 0 then
+      local want = math.max(0, math.ceil((e.keep - L.stockOf(r.creates)) / (r.yield or 1) - 1e-6))
+      if want ~= e.n then e.n, moved = want, true end
+    end
+  end
+  return moved
+end
+
+---------------------------------------------------------------------------------------------------------------------
+-- Status: ready, need materials, need skill, on cooldown
+
+-- how many of an item are in your bags right now (the game's count, else this addon's last one)
+local function bagCount(id)
+  local f = (C_Item and C_Item.GetItemCount) or rawget(_G, "GetItemCount")
+  local n = tonumber(plain(try(f, id)))
+  if n then return n end
+  return ns.stock.have(id).bags or 0
+end
+L.bagCount = bagCount
+
+-- how many crafts the materials in your bags allow now
+function L.canNow(r)
+  local can = math.huge
+  for _, m in ipairs((ns.matsOf(r))) do can = math.min(can, math.floor(bagCount(m[1]) / math.max(1, m[2] or 1))) end
+  if can == math.huge then return 0 end
+  return can
+end
+
+-- the recipe ID the profession window uses for it (a twin's, when the window listed that one)
+function L.castID(r)
+  local me = ns.me()
+  local p = me and me.profs[r.skill]
+  return p and type(p.ids) == "table" and p.ids[r.spell] or r.spell
+end
+
+function L.knowsMe(r)
+  local me = ns.me()
+  local p = me and me.profs[r.skill]
+  return (p and p.known and p.known[r.spell]) and true or false
+end
+
+-- seconds left of a recipe's own cooldown (a transmute, Mooncloth), or nil; the global cooldown doesn't count, and a
+-- cooldown the game hides (a secret value) counts as none
+function L.cooldown(r)
+  local id = L.castID(r)
+  local start, dur
+  local cd = C_Spell and C_Spell.GetSpellCooldown and try(C_Spell.GetSpellCooldown, id)
+  if type(cd) == "table" then
+    start, dur = plain(cd.startTime), plain(cd.duration)
+  elseif rawget(_G, "GetSpellCooldown") then
+    start, dur = try(GetSpellCooldown, id)
+    start, dur = plain(start), plain(dur)
+  end
+  if type(start) ~= "number" or type(dur) ~= "number" or start <= 0 or dur <= 2 then return nil end
+  local left = start + dur - ((GetTime and GetTime()) or 0)
+  return left > 0 and left or nil
+end
+
+local function timeText(sec)
+  if sec >= 86400 then return math.floor(sec / 86400 + 0.5) .. " d" end
+  if sec >= 3600 then return math.floor(sec / 3600 + 0.5) .. " h" end
+  return math.max(1, math.floor(sec / 60 + 0.5)) .. " min"
+end
+
+-- An entry's status: { key = "ready" | "materials" | "skill" | "cooldown" | "stocked", text, can (crafts now) }
+function L.status(e, r)
+  r = r or ns.recipeBySpell(e.spell)
+  if not r then return { key = "skill", text = "not in the recipe data" } end
+  if e.n <= 0 then
+    return { key = "stocked", text = e.keep and ("in stock: %d of %d"):format(L.stockOf(r.creates), e.keep) or "done" }
+  end
+  if not L.knowsMe(r) then
+    local by = ns.scan.knownBy(r.spell)
+    local me = ns.me()
+    local rank = me and me.profs[r.skill] and me.profs[r.skill].rank
+    local text
+    if #by > 0 then text = ("need skill: %s knows it"):format(by[1])
+    elseif rank and r.learn and rank < r.learn then text = ("need skill: %s %d (you have %d)"):format(ns.profName(r.skill), r.learn, rank)
+    else text = "need skill: you don't know it yet" end
+    return { key = "skill", text = text, by = by }
+  end
+  local left = L.cooldown(r)
+  if left then return { key = "cooldown", text = "on cooldown, " .. timeText(left), left = left } end
+  local can = L.canNow(r)
+  if can <= 0 then return { key = "materials", text = "need materials" } end
+  can = math.min(can, e.n)
+  return { key = "ready", text = can >= e.n and "ready" or ("ready: %d now"):format(can), can = can }
+end
+
+-- The next entry to craft, top to bottom: the first one ready (you know it, its materials are in your bags, no
+-- cooldown) that makes an item, of profession skill when given. Returns entry, recipe, crafts (as many as the bags allow, up to its
+-- count) and how many were skipped for want of materials.
+function L.next(skill)
+  local skipped = 0
+  for _, e in ipairs(L.entries()) do
+    local r = e.n > 0 and ns.recipeBySpell(e.spell)
+    -- an enchant (it makes no item) needs an item to put it on: that one is cast by hand
+    if r and r.creates and r.creates ~= 0 and (not skill or r.skill == skill) then
+      local st = L.status(e, r)
+      if st.key == "ready" then return e, r, st.can, skipped end
+      if st.key == "materials" then skipped = skipped + 1 end
+    end
+  end
+  return nil, nil, 0, skipped
+end
+
+-- What one craft earns at the auction house after its 5% cut, minus what the materials cost (the cheaper of vendor and
+-- auction house for each); nil when the item or a material has no price.
+function L.profitEach(r)
+  if not r or not r.creates or r.creates == 0 then return nil end
+  local sale = ns.prices.ah(r.creates)
+  if not sale then return nil end
+  local cost = 0
+  for _, m in ipairs((ns.matsOf(r))) do
+    local p = ns.prices.unit(m[1])
+    if not p then return nil end
+    cost = cost + p * m[2]
+  end
+  return math.floor(sale * (r.yield or 1) * 0.95 + 0.5) - cost
 end
 
 ---------------------------------------------------------------------------------------------------------------------
@@ -219,7 +428,7 @@ function L.shoppingItems(tree)
   return items
 end
 
-L.LIST_NAME = "Crafting list"
+L.LIST_NAME = "Crafting queue"
 
 -- Where a shopping list can go: "EverlookDB Auctions", "Auctionator" or nil
 function L.shoppingTarget()
@@ -300,12 +509,22 @@ function L.sentText(n, where)
 end
 
 ---------------------------------------------------------------------------------------------------------------------
--- Each craft of a listed recipe takes one off its count
+-- Each craft of a queued recipe takes one off its count (a spell ID the game hides is skipped). An entry kept in stock
+-- is counted again from your items once they change (bags, bank, mail, auctions).
 
 ns.on("UNIT_SPELLCAST_SUCCEEDED", function(_, unit, _, spell)
   if unit ~= "player" or not db() then return end
   spell = plain(spell)
-  if not spell then return end
+  if type(spell) ~= "number" then return end
   local e = L.find(spell)
-  if e then L.set(e.spell, e.n - 1) end
+  if e and e.n > 0 then L.set(e.spell, e.n - 1) end
+end)
+
+local prevStock = ns.onStock
+ns.onStock = function()
+  if prevStock then prevStock() end
+  if db() and L.restock() then changed() end
+end
+ns.on("PLAYER_ENTERING_WORLD", function()
+  if db() and C_Timer and C_Timer.After then C_Timer.After(4, function() if L.restock() then changed() end end) end
 end)

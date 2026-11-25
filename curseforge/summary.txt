@@ -1,1 +1,1 @@
-Skill-up planner, guide, crafting list and recipe browser for WoW Forever, with prices from EverlookDB Auctions.
+Skill-up planner, guide, crafting queue with Craft next and recipe browser for WoW Forever, with prices from EverlookDB Auctions.

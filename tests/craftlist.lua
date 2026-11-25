@@ -184,7 +184,7 @@ step("send missing to EverlookDB Auctions: its shopping list, vendor goods left 
   L.setMode(BOLT, "buy")
   ok = L.sendToAuctions()
   check(ok and sent, "not sent")
-  eq(sent.name, "Crafting list", "list name")
+  eq(sent.name, "Crafting queue", "list name")
   eq(#sent.items, 1, "only the bolts (thread is a vendor good)")
   eq(sent.items[1][1], BOLT, "bolts"); eq(sent.items[1][2], 2, "two")
   -- item names still loading: it tries again by itself and only the last try speaks (never "couldn't send: loading")

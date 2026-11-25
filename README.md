@@ -18,8 +18,13 @@ Level your professions the cheap and reliable way on WoW Forever. Type `/ecraft`
   Fishing, Cooking, First Aid and the rest. A bar shows how far you are toward the rank's cap, and a hint says what's
   next: the rank to train when you hit the cap, or the next step of your route. Fireworks every 25 points. With
   EverlookDB Auctions the cards sit right under its loot cards. Move them with `/ecraft skillcards move`.
-- **Crafting list** (`/ecraft list`). Plan what to craft across all your characters. See which materials you already
-  have in bags, bank and on your alts, and send the rest to an EverlookDB Auctions shopping list.
+- **Crafting queue** (`/ecraft queue`). One list of everything you plan to craft, shared with EverlookDB Auctions'
+  Crafting profit. Queue from the recipe browser, by right-clicking a recipe in your profession window, with "Queue
+  next steps" in the skill-up guide, or with a click in Crafting profit. Each recipe shows its materials (have / need
+  on all your characters, mail too), its profit and whether it's ready, needs materials, needs skill or is on cooldown.
+  "Keep 20 in stock" refills the queue by itself when you have fewer, counting bags, bank, mail, alts and auctions.
+- **Craft next.** One button under your profession window, like "Craft next: 5 Bolt of Silk Cloth". Each click crafts
+  the next ready recipe of the queue, skips the ones without materials, and ticks them off as they're made.
 - **Recipe browser** (`/ecraft recipes`). Every recipe of a profession, learned or not. Search by name or reagent
   ("silk cloth"), see where each reagent comes from, how to learn the recipe and which of your characters know it.
 - **Merchant's Favor** (`/ecraft favor`). Every Waylaid Crate ranked by gold per Favor at today's prices, with a Map
@@ -42,7 +47,7 @@ Level your professions the cheap and reliable way on WoW Forever. Type `/ecraft`
 | `/ecraft` | the settings window; the search box finds any setting |
 | `/ecraft plan [profession]` | the planner, e.g. `/ecraft plan tailoring` |
 | `/ecraft guide` | open or close the guide |
-| `/ecraft list` | the Crafting list |
+| `/ecraft queue` | the crafting queue (`add <recipe> [count]`, `keep <recipe> <count>`, `next`, `clear`) |
 | `/ecraft recipes [words]` | the recipe browser |
 | `/ecraft favor` | Merchant's Favor |
 | `/ecraft colors [on \| off]` | the profession window colours |

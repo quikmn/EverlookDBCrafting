@@ -253,7 +253,7 @@ function TT.reagentLines(t, id)
   end
   local list = TT.listNeed(id)
   if list and list.short > 0 then
-    t:Line("Crafting list", list.short .. " more")
+    t:Line("Crafting queue", list.short .. " more")
   end
 end
 

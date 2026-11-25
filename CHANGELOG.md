@@ -1,5 +1,12 @@
 # EverlookDB Crafting
 
+## Unreleased
+- New: one crafting queue. The Crafting list is now the crafting queue, and EverlookDB Auctions' Crafting profit uses the same queue: queue a recipe there with a click and it shows up here, and the other way round.
+- Queue from anywhere: "Add to queue" in the recipe browser, right-click a recipe in your profession window (queue 1, 5, 10 or all you can make), "Queue next steps" in the skill-up guide (this step and the next two, as many crafts as each still takes), or `/ecraft queue add <recipe> [count]`.
+- Craft next: a button under your profession window says what comes next, like "Craft next: 5 Bolt of Silk Cloth". Each click crafts the first recipe in the queue that is ready (you know it and the materials are in your bags), skips the ones without materials, and ticks them off as they're made. It never crafts by itself, and waits while you're casting or in combat.
+- Each recipe in the queue shows whether it's ready, needs materials, needs skill (and which of your characters knows it) or is on cooldown, and what one craft earns at the auction house.
+- Keep in stock: type how many of an item to keep in a recipe's Keep box (or `/ecraft queue keep <recipe> <count>`). When you have fewer, counting your bags, bank, mail, alts and auctions, the queue refills itself.
+
 ## v0.8.0 (2026-11-24)
 - With EverlookDB Auctions installed, your materials are counted in one place for both addons, and now include what waits in your mailbox and mail you sent to an alt that hasn't been picked up yet. Skill-up routes, the shopping list and the Crafting list take them off what to buy, and tooltips say "3 in the mail".
 ## v0.7.0 (2026-11-24)

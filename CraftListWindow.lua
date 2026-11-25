@@ -1,4 +1,5 @@
--- The Crafting list window: the recipes you plan to craft (with - and + for the count), their material tree with what
+-- The crafting queue window (once the Crafting list): the recipes you plan to craft (with - and + for the count, a
+-- Keep box for how many to keep in stock, and each one's status and profit), their material tree with what
 -- you have on every character, a craft-or-buy switch on each material one of your characters can make, a Map button to
 -- the nearest vendor for vendor goods, and "To buy" at the end. One filled button: send what is missing to EverlookDB
 -- Auctions' shopping list (vendor goods stay off it). It stays open on its own: no other window opens or closes it.
@@ -34,6 +35,22 @@ function LW.rows(tree)
     rows[#rows + 1] = { note = true, text = "Nothing: you have every material on your characters." }
   end
   return rows
+end
+
+local STATUS_COLOR = { ready = "62cf88", stocked = "62cf88", materials = "ef5d5d", skill = "8d94a3", cooldown = "e0b453" }
+LW.STATUS_COLOR = STATUS_COLOR
+
+-- the second line of a recipe: profession, what it makes, its status (coloured), its profit each and the stock kept
+function LW.rootDetail(n)
+  local L = ns.craftList
+  local e = L.find(n.spell) or { spell = n.spell, n = n.n }
+  local st = L.status(e, n.r)
+  local parts = { ns.profName(n.r.skill), ("makes %d"):format(n.makes) }
+  parts[#parts + 1] = ("|cff%s%s|r"):format(STATUS_COLOR[st.key] or "8d94a3", st.text)
+  local p = L.profitEach(n.r)
+  if p then parts[#parts + 1] = (p >= 0 and "profit " or "loss ") .. ns.money(math.abs(p)) .. " each" end
+  if e.keep and st.key ~= "stocked" then parts[#parts + 1] = ("%d of %d in stock"):format(L.stockOf(n.r.creates), e.keep) end
+  return table.concat(parts, "  \194\183  ")
 end
 
 -- the muted second line of a material
@@ -73,6 +90,30 @@ local function buildRow(list, i)
   r.right:SetJustifyH("RIGHT")
   r.right:SetWordWrap(false)
   r.check = ns.widgets.LineIcon(r, "check", 12, T.ok)
+  -- keep N in stock: the count then refills itself from what you have
+  r.keep = UI.EditBox(r, 38, 20)
+  r.keep:SetNumeric(true)
+  r.keep:SetMaxLetters(4)
+  r.keep:SetJustifyH("RIGHT")
+  r.keep:SetTextInsets(4, 6, 0, 0)
+  local function saveKeep(self)
+    local n = r.item and r.item.root and r.item
+    if not n then return end
+    local v = tonumber(self:GetText()) or 0
+    local e = ns.craftList.find(n.spell)
+    if (e and e.keep or 0) ~= v then ns.craftList.setKeep(n.spell, v) end
+  end
+  r.keep:SetScript("OnEnterPressed", function(self) saveKeep(self); self:ClearFocus() end)
+  r.keep:HookScript("OnEditFocusLost", saveKeep)
+  r.keep:SetScript("OnEnter", function(self)
+    GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+    GameTooltip:SetText("Keep in stock", 1, 1, 1)
+    GameTooltip:AddLine("How many of the item to keep. The queue then crafts what is missing by itself: it counts your bags, bank, mail, alts and auctions. Empty or 0: off.", nil, nil, nil, true)
+    GameTooltip:Show()
+  end)
+  r.keep:SetScript("OnLeave", function() GameTooltip:Hide() end)
+  r.keepLabel = UI.Text(r, T.fontSmall + 1, T.muted)
+  r.keepLabel:SetText("keep")
   -- buttons, right to left: remove, show, +, count, -  (recipes) or craft/buy, map (materials)
   r.remove = CreateFrame("Button", nil, r)
   r.remove:SetSize(20, 20)
@@ -108,7 +149,10 @@ local function buildRow(list, i)
     if n.root then
       GameTooltip:AddLine(n.r.name, 1, 1, 1)
       GameTooltip:AddLine(("%s, %d crafts, makes %d."):format(ns.profName(n.r.skill), n.n, n.makes), nil, nil, nil, true)
-      GameTooltip:AddLine("- and + change the count (Shift: by 5). Each craft takes one off. Shift-click: link it.", 0.55, 0.58, 0.64, true)
+      local st = ns.craftList.status(ns.craftList.find(n.spell) or { spell = n.spell, n = n.n }, n.r)
+      GameTooltip:AddLine("Status: " .. st.text, 1, 0.82, 0, true)
+      if st.by and #st.by > 0 then GameTooltip:AddLine("Known by " .. table.concat(st.by, ", ") .. ".", 0.8, 0.8, 0.8, true) end
+      GameTooltip:AddLine("- and + change the count (Shift: by 5). Each craft takes one off. Keep: how many to keep in stock (the count then refills itself). Shift-click: link it.", 0.55, 0.58, 0.64, true)
     else
       pcall(GameTooltip.SetItemByID, GameTooltip, n.id)
       local h = ns.stock.have(n.id)
@@ -127,7 +171,7 @@ local function buildRow(list, i)
 end
 
 local function hideAll(r)
-  for _, k in ipairs({ "remove", "show", "plus", "count", "minus", "mode", "map", "check" }) do r[k]:Hide() end
+  for _, k in ipairs({ "remove", "show", "plus", "count", "minus", "mode", "map", "check", "keep", "keepLabel" }) do r[k]:Hide() end
 end
 
 local function paintRow(r, n)
@@ -169,15 +213,25 @@ local function paintRow(r, n)
     ns.widgets.SetAnyIcon(r.icon, ns.recipeIcon(n.r), T)
     local _, _, q = ns.itemInfo(n.r.creates or 0)
     r.name:SetText(("|cff%s%s|r"):format(ns.qualityColor(n.r.creates and n.r.creates ~= 0 and q or 1), n.r.name))
-    local can = ns.browser.canMake(n.r)
-    r.detail:SetText(("%s  \194\183  makes %d%s"):format(ns.profName(n.r.skill), n.makes,
-      ns.browser.knownByMe(n.r) and ("  \194\183  %d with your bags now"):format(can) or ""))
+    r.detail:SetText(LW.rootDetail(n))
     r.remove:SetPoint("RIGHT", -6, 0); r.remove:Show()
     r.show:SetPoint("RIGHT", r.remove, "LEFT", -6, 0); r.show:Show()
     r.plus:SetPoint("RIGHT", r.show, "LEFT", -10, 0); r.plus:Show()
     r.count:SetPoint("RIGHT", r.plus, "LEFT", -2, 0); r.count:SetText(n.n); r.count:Show()
     r.minus:SetPoint("RIGHT", r.count, "LEFT", -2, 0); r.minus:Show()
-    rightEdge = r.minus
+    local e = ns.craftList.find(n.spell)
+    if n.r.creates and n.r.creates ~= 0 then
+      r.keep:ClearAllPoints()
+      r.keep:SetPoint("RIGHT", r.minus, "LEFT", -10, 0)
+      if not (r.keep.HasFocus and r.keep:HasFocus()) then r.keep:SetText(e and e.keep and tostring(e.keep) or "") end
+      r.keep:Show()
+      r.keepLabel:ClearAllPoints()
+      r.keepLabel:SetPoint("RIGHT", r.keep, "LEFT", -4, 0)
+      r.keepLabel:Show()
+      rightEdge = r.keepLabel
+    else
+      rightEdge = r.minus
+    end
   elseif n.buy then
     local name, icon, q = ns.itemInfo(n.id)
     ns.widgets.SetAnyIcon(r.icon, icon, T)
@@ -224,12 +278,12 @@ end
 
 local function make()
   if f then return f end
-  f = ns.widgets.Window({ name = "EverlookCraftList", posKey = "list", title = "Crafting list", icon = "list",
+  f = ns.widgets.Window({ name = "EverlookCraftList", posKey = "list", title = "Crafting queue", icon = "list",
     width = 600, height = 560, minWidth = 520, minHeight = 360, point = "CENTER", x = -220, y = 20,
-    hint = "Right-click a material: craft or buy. Vendor goods stay off the list." })
+    hint = "Right-click a material: craft or buy. Craft next in your profession window goes top to bottom." })
   T = f.T
   f.list = ns.widgets.VList(f.body, T, ROW_H, buildRow, paintRow, 3,
-    "Nothing planned yet. Open the recipe browser (/ecraft recipes) and press \"Add to crafting list\" on a recipe, or type /ecraft list add <recipe name>.")
+    "Nothing queued yet. Open the recipe browser (/ecraft recipes) and press \"Add to queue\" on a recipe, or type /ecraft queue add <recipe name>.")
   f.list:SetAllPoints(f.body)
   f.list.empty:SetText("")
   -- the empty state: a line icon, a title and what to do, in the middle
@@ -241,12 +295,12 @@ local function make()
   e.title = UI.Text(e, T.fontTitle + 1, T.text)
   e.title:SetPoint("TOP", e.icon, "BOTTOM", 0, -12)
   e.title:SetJustifyH("CENTER")
-  e.title:SetText("Nothing planned yet")
+  e.title:SetText("Nothing queued yet")
   e.text = UI.Text(e, T.font, T.muted)
   e.text:SetPoint("TOP", e.title, "BOTTOM", 0, -8)
   e.text:SetWidth(360)
   e.text:SetJustifyH("CENTER")
-  e.text:SetText("Find a recipe in the recipe browser and press \"Add to crafting list\", or type /ecraft list add <recipe name>. The list shows every material, what you have on each character, and what is missing.")
+  e.text:SetText("Queue a recipe: \"Add to queue\" in the recipe browser, right-click a recipe in your profession window, \"Queue next steps\" in the skill-up guide, or Crafting profit in EverlookDB Auctions. The queue shows every material, what you have on each character, and what is missing.")
   f.emptyState = e
   f:SetPrimary("Send missing to Auctions", function() LW.primary() end, 190)
   f:SetScript("OnShow", function() LW.render() end)
@@ -272,7 +326,7 @@ function LW.render()
   local ah, vendor, unpriced = ns.craftList.cost(tree)
   local nMissing = #tree.missing
   if #tree.roots == 0 then
-    f.sub:SetText("Plan what to craft: the materials, what you have on every character, and what is missing.")
+    f.sub:SetText("Queue what to craft: the materials, what you have on every character, and what is missing.")
   else
     local cost = ns.money(ah + vendor) .. (unpriced > 0 and (" |cff8d94a3+ " .. unpriced .. " without a price|r") or "")
     f.sub:SetText(("%d recipe%s  \194\183  %s"):format(#tree.roots, #tree.roots == 1 and "" or "s",
@@ -287,8 +341,8 @@ function LW.render()
     p:SetUsable(ns.craftList.shoppingTarget() ~= nil and #ns.craftList.shoppingItems(tree) > 0)
   end
   f.emptyState:SetShown(#tree.roots == 0)
-  f.hint:SetText(#tree.roots == 0 and "Also: /ecraft list add <recipe name> [count]"
-    or "Right-click a material: craft or buy. Vendor goods stay off the list.")
+  f.hint:SetText(#tree.roots == 0 and "Also: /ecraft queue add <recipe name> [count]"
+    or "Right-click a material: craft or buy. Craft next in your profession window goes top to bottom.")
   f.list:SetItems(LW.rows(tree), true)
 end
 
