@@ -1,6 +1,6 @@
 # EverlookDB Crafting
 
-## Unreleased
+## v0.11.0 (2026-11-27)
 - Skill-up planner: routes are more reliable. Orange recipes come first because they always give a point, then yellow ones. A green recipe is only used when nothing orange or yellow exists at that skill, and the step says so.
 - Skill-up planner: the cheapest route now counts what a craft gets back for sure: its vendor price, or its auction price for potions, bolts, bars and other goods that sell every day. When two recipes cost about the same, the one whose product is worth more wins. The planner shows what the crafts get back.
 - A recipe taught by a pattern is planned from the skill the pattern asks for, so no step sends you to a pattern you can't learn yet.
