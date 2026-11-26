@@ -154,10 +154,10 @@ local function costText(cur, amount)
   return amount and amount > 0 and ("%d x %s"):format(amount, item) or item
 end
 
--- the learn skill as text: "~30", with AllTheThings' figure where the site only estimates one
+-- the learn skill as text: "~30", or "~30 or 85" where a second source gives another figure (never names the source)
 function B.learnText(r)
   if r.learnKnown then return tostring(r.learn) end
-  if r.attLearn and r.attLearn ~= r.learn then return ("~%d (AllTheThings: %d)"):format(r.learn, r.attLearn) end
+  if r.attLearn and r.attLearn ~= r.learn then return ("~%d or %d"):format(r.learn, r.attLearn) end
   return "~" .. r.learn
 end
 
@@ -246,7 +246,7 @@ function B.learnLines(r, side)
         local npc, chance, src = drop[i], drop[i + 1], drop[i + 2]
         nDrop = nDrop + 1
         local how = chance and chance > 0 and (", %s%%"):format(chance >= 1 and ("%.0f"):format(chance) or ("%.2f"):format(chance))
-          or (", chance unknown" .. (src == 3 and " (AllTheThings)" or ""))
+          or ", chance unknown"
         add(("Drops from %s%s"):format(npcLabel(npc), how),
           { pin = hasSpot(npc) and npc or nil, icon = "sword" })
         sources = sources + 1

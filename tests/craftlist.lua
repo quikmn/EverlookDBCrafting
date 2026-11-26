@@ -334,7 +334,11 @@ step("source unknown only when no trainer, vendor, Favor vendor, drop or quest i
   end
   eq(wrong, 0, "recipes with sources counted unknown")
   local r = find(function(x) return x.attLearn and not x.learnKnown and x.attLearn ~= x.learn end)
-  if r then check(B.learnText(r):find("AllTheThings", 1, true), "AllTheThings learn skill not shown") end
+  if r then
+    local t = B.learnText(r)
+    check(t:find(" or " .. r.attLearn, 1, true), "second learn skill not shown: " .. t)
+    check(not t:find("AllTheThings", 1, true), "names another addon: " .. t)
+  end
   local hammer = find(function(x) return x.tools ~= nil end)
   if hammer then check(B.toolsText(hammer), "tool name") end
 end)
