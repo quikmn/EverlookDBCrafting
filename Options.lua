@@ -247,8 +247,10 @@ function O.rowDetail(row, skill)
     local tool = ns.DATA.tools and ns.DATA.tools[key]
     if tool then tools = tools .. "  \194\183  needs " .. tool[1] end
   end
-  return ("%s%d\226\128\147%d|r  \194\183  %s  \194\183  %s  \194\183  %s%s"):format(col, st.from, st.to, crafts, each,
-    r and learnText(r, st) or "", tools)
+  -- a green step: only when nothing orange or yellow exists at that skill, and it says so
+  local green = st.green and "  \194\183  |cff40c040green: nothing orange or yellow here, many crafts per point|r" or ""
+  return ("%s%d\226\128\147%d|r  \194\183  %s  \194\183  %s  \194\183  %s%s%s"):format(col, st.from, st.to, crafts, each,
+    r and learnText(r, st) or "", tools, green)
 end
 
 -- the NPCs a row's Map button looks among
@@ -359,7 +361,7 @@ end
 
 app:Section("planner", "Skill-up planner", function(stack)
   local T = stack.T
-  UI.Header(stack, "Skill-up planner", "The cheapest way to your target at today's prices. Every step is a recipe you know or can learn now for your faction.")
+  UI.Header(stack, "Skill-up planner", "The cheapest way to your target at today's prices. Every step is a recipe you know or can learn now for your faction, orange first, then yellow.")
   UI.Dropdown(stack, {
     label = "Profession", desc = "Your professions first. Open a profession window once so the planner knows your recipes.",
     keywords = { "profession", "tailoring", "alchemy", "blacksmithing" },
@@ -568,7 +570,11 @@ app:Section("planner", "Skill-up planner", function(stack)
       box.tiles:Set(2, "PATTERNS", b, "Vendor patterns (and auction house patterns, when that switch is on) for recipes you don't know yet.")
       box.tiles:Set(3, "TRAINER FEES", c, "Recipe fees and rank training. \"?\" where the fee isn't known.")
       box.tiles:Set(4, "TOTAL", d, "Materials, patterns and fees. Never a guessed price.")
-      box.resale:SetText(route.resale and ("What the crafts would sell for at the auction house: %s (not counted)"):format(ns.money(route.resale)) or "")
+      -- what comes back for sure (vendor prices, goods that sell every day) chose the route; the rest is a maybe
+      local backText = route.back and ("The crafts get back about %s (vendor, or goods that sell)"):format(ns.money(route.back)) or nil
+      local resaleText = route.resale and ("%s at the auction house if all of them sold (not counted)"):format(ns.money(route.resale)) or nil
+      box.resale:SetText(backText and resaleText and (backText .. "; " .. resaleText) or backText and (backText .. ".")
+        or resaleText and ("What the crafts would sell for: " .. resaleText) or "")
       local rank = ns.plans.skillNow(skill)
       box.bar:Set(rank or route.from, 0, route.to)
     else
@@ -737,6 +743,7 @@ end, { icon = "check" })
 app:Section("about", "About", function(stack)
   UI.Header(stack, "About", "Data from everlookdb.com, the same rules as the site's professions guide.")
   UI.Note(stack, "Every step must reliably give its skill-ups: a recipe you know, or one you can learn now for your faction (a trainer, a teacher outside a dungeon, a vendor pattern). Dungeon, drop, quest and unknown recipes are never in the route; a reputation vendor's pattern only once you have the standing. A learn skill marked ~ is an estimate.")
+  UI.Note(stack, "Orange recipes come first because they always give a point, then yellow ones; a yellow one replaces an orange one only when the orange one would cost more than twice as much per point. Green is used only when nothing orange or yellow exists, and the step says so. Among those the planner takes the least gold per skill point, after what a craft gets back for sure: its vendor price, or its auction price for potions, bolts, bars and other goods that sell every day. When two recipes cost about the same, the one whose product is worth more wins.")
   UI.Header(stack, "Sources")
   UI.Note(stack, "WoW Forever client data, classic-db (CMaNGOS, GPL-3.0), Efficient Games' EG Link (CC BY 4.0, changed by EverlookDB) and AllTheThings (MIT, changed by EverlookDB). Prices: EverlookDB Auctions or Auctionator, on your PC.")
   UI.Stat(stack, "Data build", function() return ns.DATA and ns.DATA.build or "?" end)

@@ -90,6 +90,24 @@ function Pl.calculate(skill, to, from)
   local known = rec and rec.known or {}
   local P = ns.planner
   local ranks = ns.DATA.ranks[skill]
+  -- what one craft reliably gets back (taken off its cost), and what its product is worth at best (for ties)
+  local function back(r)
+    if not r.creates or r.creates == 0 then return 0 end
+    return (ns.prices.back(r.creates)) * r.yield
+  end
+  -- a material -> the highest gray skill of a recipe that uses it: a product is useful while that is still ahead
+  local later = {}
+  for _, r in ipairs(recipes) do
+    if r.skip == nil or r.skip == "" then
+      for _, m in ipairs(ns.matsOf(r)) do later[m[1]] = math.max(later[m[1]] or 0, r.gray) end
+    end
+  end
+  local function worth(r)
+    if not r.creates or r.creates == 0 then return 0 end
+    local v = ns.prices.worth(r.creates)
+    if (later[r.creates] or 0) > r.yellow then v = math.max(v, (ns.prices.unit(r.creates)) or 0) end
+    return math.max(0, v * r.yield - back(r))
+  end
   local res = P.plan(recipes, {
     from = from, to = to, side = ns.side(), known = known,
     price = function(id) return (ns.prices.unit(id)) end,
@@ -100,24 +118,29 @@ function Pl.calculate(skill, to, from)
     ranks = ranks, maxSkill = (from == (rank or from)) and max or nil,
     tools = ns.DATA.tools, hasItem = function(id) return (ns.stock.usable(id) or 0) > 0 end,
     choice = Pl.choice, repOk = s.vendorPatterns ~= false and ns.repOk or nil,
+    back = back, worth = worth,
   })
   local out = {
     skill = skill, from = from, to = to, key = keyOf(s), at = time(), side = ns.side(), stall = res.stall,
     estimated = res.estimated, totals = res.totals, steps = {}, trainings = res.trainings, raw = {}, crafted = {},
     startSkill = from ~= rank and from or nil,
   }
-  local resale, resaleAny = 0, false
+  local resale, resaleAny, backSum = 0, false, 0
   for _, st in ipairs(res.steps) do
     out.steps[#out.steps + 1] = { spell = st.r.spell, from = st.from, to = st.to + 1, n = st.n, n90 = st.n90,
       crafts = st.crafts, var = st.var, extra = st.extra,
       each = st.each, est = st.est or nil, early = st.early or nil, patternPrice = st.patternPrice, fee = st.fee,
-      known = known[st.r.spell] or nil, again = st.again or nil, rep = st.rep or nil }
+      known = known[st.r.spell] or nil, again = st.again or nil, rep = st.rep or nil, green = st.green or nil,
+      back = st.back and st.back > 0 and st.back or nil }
+    backSum = backSum + (st.back or 0) * st.n
     if st.r.creates and st.r.creates ~= 0 then
       local p = ns.prices.ah(st.r.creates)
       if p then resale, resaleAny = resale + p * st.r.yield * st.n * 0.95, true end
     end
   end
   out.resale = resaleAny and resale or nil
+  -- what the crafts reliably get back (vendor prices, goods that sell): already taken off when the route was chosen
+  out.back = backSum > 0 and backSum or nil
   -- the tools to make or buy first: { key, name, at (the skill of the first step that needs it), kind, spell, item, price }
   out.tools = {}
   for _, tl in ipairs(res.tools or {}) do

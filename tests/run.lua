@@ -277,6 +277,68 @@ step("owned materials count as free and leave the shopping list", function()
   check(res2.totals.mats > 0, "something to buy without stock")
 end)
 
+step("orange first, then yellow; green only as a last resort, and the step says so", function()
+  local function plan(fx, pr, o)
+    local base = { from = 1, to = 60, side = "a", known = {}, oneTime = false, price = function(id) return pr[id] end }
+    for k, v in pairs(o or {}) do base[k] = v end
+    return P.plan(fx, base)
+  end
+  local function at(res, s) for _, st in ipairs(res.steps) do if st.from <= s and s <= st.to then return st end end end
+  -- orange (dearer, within twice the yellow one's cost per point) beats yellow
+  local fx = {
+    R({ spell = 41, name = "Yellow", creates = 140, learn = 1, yellow = 20, green = 40, gray = 60, mats = { { 10, 1 } } }),
+    R({ spell = 42, name = "Orange", creates = 141, learn = 25, yellow = 70, green = 80, gray = 90, mats = { { 11, 1 } } }),
+  }
+  local res = plan(fx, { [10] = 100, [11] = 200 })
+  eq(at(res, 30).r.name, "Orange", "orange before a cheaper yellow")
+  -- but not at any price: far more than twice the yellow cost per point, the yellow one stays
+  res = plan(fx, { [10] = 100, [11] = 5000 }, { to = 38 })
+  eq(at(res, 30).r.name, "Yellow", "an orange recipe at 50 times the price")
+  -- yellow beats green however cheap the green one is; no green point while something yellow exists
+  local fx2 = {
+    R({ spell = 43, name = "Green", creates = 142, learn = 1, yellow = 5, green = 10, gray = 60, mats = { { 10, 1 } } }),
+    R({ spell = 44, name = "Yellow", creates = 143, learn = 1, yellow = 12, green = 40, gray = 60, mats = { { 11, 1 } } }),
+  }
+  res = plan(fx2, { [10] = 1, [11] = 1000 }, { to = 40 })
+  eq(at(res, 30).r.name, "Yellow", "yellow before a cheap green")
+  for _, st in ipairs(res.steps) do check(not st.green, "a green step while yellow exists") end
+  -- green only when nothing else exists, flagged
+  res = plan({ fx2[1] }, { [10] = 1 }, { to = 40 })
+  check(at(res, 30) and at(res, 30).green, "the green step is not flagged")
+end)
+
+step("about the same cost: the more valuable product wins; what a craft gets back comes off its cost", function()
+  local fx = {
+    R({ spell = 51, name = "Plain", creates = 150, learn = 1, yellow = 50, green = 60, gray = 70, mats = { { 10, 1 } } }),
+    R({ spell = 52, name = "Worth", creates = 151, learn = 1, yellow = 50, green = 60, gray = 70, mats = { { 11, 1 } } }),
+  }
+  local function first(pr, o)
+    local base = { from = 1, to = 40, side = "a", known = {}, oneTime = false, price = function(id) return pr[id] end }
+    for k, v in pairs(o or {}) do base[k] = v end
+    return P.plan(fx, base).steps[1].r.name
+  end
+  local worth = function(r) return r.spell == 52 and 40 or 0 end
+  eq(first({ [10] = 100, [11] = 110 }), "Plain", "the cheaper one without a product worth more")
+  eq(first({ [10] = 100, [11] = 110 }, { worth = worth }), "Worth", "10% dearer, product worth 40 more")
+  eq(first({ [10] = 100, [11] = 130 }, { worth = function(r) return r.spell == 52 and 100000 or 0 end }), "Plain", "30% dearer is not about the same")
+  -- a reliable return (a vendor price) is taken off the cost itself
+  eq(first({ [10] = 100, [11] = 150 }, { back = function(r) return r.spell == 52 and 80 or 0 end }), "Worth", "150 - 80 beats 100")
+  -- the data and the auction house: a good with a real stock sells, gear counts at its vendor price
+  local made = ns.DATA.made
+  check(made and made[2996] and made[2996][2] == 1, "Bolt of Linen Cloth is a good")
+  eq((ns.prices.back(2996)), made[2996][1], "no auction data: the vendor price")
+  EverlookDBAuctionsAPI = { version = 6, price = function(id) if id == 2996 then return 1000, 60, 500, 20 end end }
+  local v, how = ns.prices.back(2996)
+  eq(v, 950, "auction price less the 5% cut"); eq(how, "ah", "sold at the auction house")
+  EverlookDBAuctionsAPI = { version = 6, price = function(id) if id == 2996 then return 1000, 60, 3, 1 end end }
+  eq((ns.prices.back(2996)), made[2996][1], "three up for sale is no market: the vendor price")
+  local gear
+  for id, m in pairs(made) do if m[2] == 0 and m[1] > 0 then gear = id; break end end
+  EverlookDBAuctionsAPI = { version = 6, price = function() return 99999999, 60, 500, 20 end }
+  eq((ns.prices.back(gear)), made[gear][1], "a weapon or armour piece counts at its vendor price")
+  EverlookDBAuctionsAPI = nil
+end)
+
 step("unpriced materials: never in totals, counted, and the route says it estimated", function()
   local res = P.plan(fixture, { from = 1, to = 60, side = "a", known = {}, oneTime = false,
     price = function(id) if id == 10 then return nil end return prices[id] end, estimate = function() return 100 end })

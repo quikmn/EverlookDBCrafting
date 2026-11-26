@@ -1,17 +1,21 @@
 -- The Skill-Up planner: the cheapest reliable route from your skill to a target. Pure Lua (no game calls), so the
 -- tests run it offline and check it against the site's own route code (everlookdb.com/professions).
 --
--- The route follows the site's rule for every professions guide, in this order:
+-- The route follows the site's rule for every professions guide, in this order (the site's web/route.js):
 --   1. every step must reliably give its skill-ups: a recipe you know, or one you can learn now for your faction
 --      (trainer, a one-off teacher outside a dungeon, a vendor pattern). Dungeon, drop, quest and unknown recipes are
 --      never in it (with "Patterns from the auction house" on, a drop whose pattern is up for sale today is); a vendor
---      pattern behind a reputation only once you have that standing (o.repOk; the site, not knowing you, never does);
---   2. then the cheapest, in gold at today's prices;
---   3. a step sticks with the recipe in hand unless another is clearly cheaper, so steps stay long.
+--      pattern behind a reputation only once you have that standing (o.repOk; the site, not knowing you, never does).
+--      Orange recipes first (always a point), then yellow; a yellow one replaces an orange one only when the orange
+--      one would cost more than P.ORANGE_WORTH times as much per point. Green only when nothing orange or yellow
+--      exists at that skill, and the step says so (st.green);
+--   2. then the cheapest per skill point, in gold at today's prices, less what the craft reliably gets back
+--      (o.back: its vendor price, or selling a good that trades at the auction house);
+--   3. two that cost about the same (within P.NEAR per point): the one whose product is worth more (o.worth);
+--   4. a step sticks with the recipe in hand unless another of the same colour is clearly cheaper, so steps stay long.
 -- The skill-up chance is the classic one: orange always, yellow to green (gray - skill) / (gray - yellow), gray never.
--- Per skill point the planner takes the recipe with the lowest expected gold (material cost / chance), weighed by how
--- hard it is to learn (learntier.js's factors), exactly as the site's buildGuide does. One-time costs (a pattern,
--- a trainer fee) are then weighed by trying the route without each such recipe and keeping whichever is cheaper.
+-- One-time costs (a pattern, a trainer fee) are then weighed by trying the route without each such recipe and keeping
+-- whichever is cheaper, as long as it has no more yellow or green points.
 local _, ns = ...
 ns = ns or {}
 
@@ -23,6 +27,11 @@ P.STRETCH = 30            -- nothing learnable yet: assume the trainer teaches t
 P.BREAKS = { [75] = true, [150] = true, [225] = true }
 P.Z90 = 1.2816            -- the 90% point of the normal distribution
 P.MAIN_TIER = 2
+P.NEAR = 0.12             -- "about the same" cost per skill point
+P.STICK = 0.15            -- a step keeps its recipe unless another of the same colour is more than this much cheaper
+P.ORANGE_WORTH = 2        -- orange before yellow, up to this many times the yellow cost per point
+local EPS = 1e-9
+local COLORS = { "orange", "yellow", "green" }
 local FACTOR = { [0] = 1, [1] = 1.1, [2] = 1.6, [3] = 4 }
 local COOLDOWN = 1000
 local INF = math.huge
@@ -77,25 +86,59 @@ local function costing(pool, base, matsOf, choice)
 end
 P.costing = costing
 
--- The site's buildGuide: per skill point the cheapest recipe by cost / chance (yellow and orange first, green only
--- when nothing else is left), sticking with the one in hand unless something is more than 15% cheaper.
-function P.guide(usable, costOf, from, to)
-  local points, prev, stall = {}, nil, nil
-  for s = from, to - 1 do
-    local best, bestScore, pass = nil, INF, nil
-    for _, ps in ipairs({ "yellow", "green" }) do
-      pass = ps
-      for _, r in ipairs(usable) do
-        local c = P.chance(r, s)
-        if not (c <= 0 or (ps == "yellow" and s >= r.green)) then
-          local score = costOf(r) / c
-          if score < bestScore - 1e-9 or (math.abs(score - bestScore) < 1e-9 and r.yellow > best.yellow) then
-            best, bestScore = r, score
+function P.colorAt(r, s)
+  return s < r.yellow and "orange" or s < r.green and "yellow" or "green"
+end
+
+-- The recipe for skill point s (the site's pickAt): recipe, colour, chance; nil when nothing gives a point.
+function P.pickAt(usable, s, costOf, worthOf, prev)
+  local by = { orange = {}, yellow = {}, green = {} }
+  local low = { orange = INF, yellow = INF, green = INF }
+  for _, r in ipairs(usable) do
+    local c = P.chance(r, s)
+    if c > 0 then
+      local score, color = costOf(r) / c, P.colorAt(r, s)
+      if score < INF then
+        local l = by[color]
+        l[#l + 1] = { r = r, c = c, score = score }
+        if score < low[color] then low[color] = score end
+      end
+    end
+  end
+  for _, color in ipairs(COLORS) do
+    local cands, best = by[color], low[color]
+    -- orange comes first, but not at any price
+    local skip = #cands == 0 or (color == "orange" and #by.yellow > 0 and best > low.yellow * P.ORANGE_WORTH + EPS)
+    if not skip then
+      if prev then
+        for _, x in ipairs(cands) do
+          if x.r == prev and x.score <= best * (1 + P.STICK) + EPS then return prev, color, x.c end
+        end
+      end
+      local pick
+      for _, x in ipairs(cands) do
+        if x.score <= best * (1 + P.NEAR) + EPS then
+          x.left = x.score - math.max(0, worthOf and worthOf(x.r) or 0) / x.c
+          if not pick or x.left < pick.left - EPS
+            or (math.abs(x.left - pick.left) <= EPS and (x.score < pick.score - EPS
+              or (math.abs(x.score - pick.score) <= EPS and x.r.yellow > pick.r.yellow))) then
+            pick = x
           end
         end
       end
-      if best then break end
+      return pick.r, color, pick.c
     end
+  end
+  return nil
+end
+
+-- The site's buildGuide: steps, the skill the route stalls at (nil: it reaches `to`), and how many points of each
+-- colour it has ({ orange, yellow, green }).
+function P.guide(usable, costOf, from, to, worthOf)
+  local points, prev, stall = {}, nil, nil
+  local count = { orange = 0, yellow = 0, green = 0 }
+  for s = from, to - 1 do
+    local best, color, c = P.pickAt(usable, s, costOf, worthOf, prev)
     local early = false
     if not best then
       for _, r in ipairs(usable) do
@@ -104,14 +147,11 @@ function P.guide(usable, costOf, from, to)
         end
       end
       early = best ~= nil
+      if best then color, c = P.colorAt(best, s), 1 end
     end
     if not best then stall = s break end
-    local pc = prev and P.chance(prev, s) or 0
-    if prev and prev ~= best and pc > 0 and (pass == "green" or s < prev.green) and costOf(prev) / pc <= bestScore * 1.15 then
-      best = prev
-    end
-    local c = early and 1 or P.chance(best, s)
-    points[#points + 1] = { s = s, r = best, chance = c, early = early }
+    points[#points + 1] = { s = s, r = best, chance = c, early = early, color = color }
+    count[color] = count[color] + 1
     prev = best
   end
   local steps = {}
@@ -122,16 +162,17 @@ function P.guide(usable, costOf, from, to)
       last.crafts = last.crafts + 1 / pt.chance
       last.var = last.var + (1 - pt.chance) / (pt.chance * pt.chance)
       last.early = last.early or pt.early
+      last.green = last.green or pt.color == "green"
     else
       steps[#steps + 1] = { from = pt.s, to = pt.s, r = pt.r, crafts = 1 / pt.chance,
-        var = (1 - pt.chance) / (pt.chance * pt.chance), early = pt.early }
+        var = (1 - pt.chance) / (pt.chance * pt.chance), early = pt.early, green = pt.color == "green" }
     end
   end
   for _, st in ipairs(steps) do
     st.n = math.ceil(st.crafts - 1e-6)
     st.n90 = math.max(st.n, math.ceil(st.crafts + P.Z90 * math.sqrt(st.var) - 1e-6))
   end
-  return steps, stall
+  return steps, stall, count
 end
 
 -- The expected crafts and their variance from skill a to b with recipe r (each skill point a geometric draw).
@@ -194,21 +235,20 @@ local function learnable(r, o)
 end
 P.learnable = learnable
 
--- One route: the pool (minus `excluded`), its steps, and its cost in gold (materials per craft plus one-time costs).
+-- One route: the pool, its steps (never a recipe in `excluded`; those still count as ways to make a material), and
+-- its cost in gold (materials per craft, less what the crafts reliably get back, plus one-time costs).
 local function route(recipes, o, excluded, base)
   local pool, tierOf, once, onceUnknown = {}, {}, {}, {}
   for _, r in ipairs(recipes) do
-    if not excluded[r] then
-      local t, cost, unknown = learnable(r, o)
-      if t then
-        pool[#pool + 1] = r
-        tierOf[r], once[r], onceUnknown[r] = t, cost or 0, unknown
-      end
+    local t, cost, unknown = learnable(r, o)
+    if t then
+      pool[#pool + 1] = r
+      tierOf[r], once[r], onceUnknown[r] = t, cost or 0, unknown
     end
   end
   local matsOf = o.matsOf or function(r) return r.mats end
   local cost = costing(pool, base, matsOf, o.choice)
-  local rcost, est = {}, {}
+  local rcost, est, net = {}, {}, {}
   for _, r in ipairs(pool) do
     local e, isEst = 0, false
     for _, m in ipairs(matsOf(r)) do
@@ -216,27 +256,29 @@ local function route(recipes, o, excluded, base)
       e, isEst = e + x.e * m[2], isEst or x.est
     end
     rcost[r], est[r] = e, isEst
+    net[r] = math.max(0, e - (o.back and o.back(r) or 0))
   end
   local function costOf(r)
     local fac = P.tierFactor(tierOf[r])
-    return rcost[r] * fac + (fac - 1) * 0.01
+    return net[r] * fac + (fac - 1) * 0.01
   end
   local usable = {}
   for _, r in ipairs(pool) do
-    if (r.skip == nil or r.skip == "") and costOf(r) < INF then usable[#usable + 1] = r end
+    if not excluded[r] and (r.skip == nil or r.skip == "") and costOf(r) < INF then usable[#usable + 1] = r end
   end
-  local steps, stall = P.guide(usable, costOf, o.from, o.to)
+  local steps, stall, points = P.guide(usable, costOf, o.from, o.to, o.worth)
   local total, seen = 0, {}
   for _, st in ipairs(steps) do
     st.each, st.est = rcost[st.r], est[st.r]
-    total = total + st.n * rcost[st.r]
+    st.back = o.back and o.back(st.r) or nil
+    total = total + st.n * net[st.r]
     if not seen[st.r] then
       seen[st.r] = true
       st.once, st.onceUnknown = once[st.r], onceUnknown[st.r]
       total = total + (once[st.r] or 0)
     end
   end
-  return { steps = steps, stall = stall, total = total, cost = cost, once = once, pool = pool }
+  return { steps = steps, stall = stall, total = total, cost = cost, once = once, pool = pool, points = points }
 end
 
 -- The shopping list of a route, the site's shopping(): each step's materials, expanded into what they are made of
@@ -355,6 +397,8 @@ o = {
   choice(id)           "buy" / "craft": the player's pick for a material that can be made (nil: the cheaper way)
   repOk(r)             true when you have the reputation a recipe's vendor pattern asks for
   oneTime              false: ignore pattern and fee costs (the site's route, for the parity tests)
+  back(r)              copper one craft reliably gets back (its vendor price, a good that sells): taken off its cost
+  worth(r)             copper one craft's product is worth beyond back(r), to choose between two that cost about the same
   matsOf(r)            the reagents of a recipe (the server's, where a profession window showed others)
   ranks, maxSkill      for the rank trainings (P.trainings)
   tools, hasItem(id)   DATA.tools and whether you have an item, for the tool steps (P.toolSteps)
@@ -390,7 +434,12 @@ function P.plan(recipes, o)
       for _, st in ipairs(cands) do
         excluded[st.r] = true
         local alt = route(recipes, o, excluded, base)
-        if reach(alt) >= reach(res) and alt.total < res.total - 1 then
+        -- never at the price of more yellow or green points (reliable skill-ups come before gold), unless the route
+        -- then costs less than 1 / ORANGE_WORTH of the other; more green points never
+        local asReliable = alt.points.green <= res.points.green
+          and alt.points.green + alt.points.yellow <= res.points.green + res.points.yellow
+        if reach(alt) >= reach(res) and alt.total < res.total - 1 and (asReliable
+          or (alt.points.green <= res.points.green and alt.total * P.ORANGE_WORTH < res.total)) then
           res, improved = alt, true
           break
         end

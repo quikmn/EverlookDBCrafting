@@ -45,6 +45,36 @@ function Pr.ah(id)
   return nil
 end
 
+-- What one of a crafted item reliably brings back, in copper: its vendor sell price, or, for a good the auction house
+-- trades (a potion, a bolt, a bar: DATA.made's flag) that has a real stock up for sale, its auction price less the 5%
+-- cut. Weapons and armour count at their vendor price only: nobody buys forty of the same piece at the listed price.
+-- Returns the amount and how ("vendor" | "ah"); 0 when it is worth nothing.
+Pr.AH_CUT = 0.05
+Pr.LIQUID_QTY = 20
+function Pr.back(id)
+  local m = ns.DATA and ns.DATA.made and ns.DATA.made[id]
+  local v = m and m[1] or 0
+  if m and m[2] == 1 then
+    local s = ns.settings()
+    if s.useAuctions and Pr.auctionsLoaded() then
+      local low, _, qty = try(EverlookDBAuctionsAPI.price, id)
+      low, qty = plain(low), plain(qty)
+      if low and low > 0 and (qty or 0) >= Pr.LIQUID_QTY and low * (1 - Pr.AH_CUT) > v then return low * (1 - Pr.AH_CUT), "ah" end
+    end
+  end
+  return v, "vendor"
+end
+
+-- What one of a crafted item is worth at best: the auction house's price less the cut (when it does not bind on
+-- pickup), else what a vendor pays. Only to choose between two crafts that cost about the same.
+function Pr.worth(id)
+  local m = ns.DATA and ns.DATA.made and ns.DATA.made[id]
+  local v = m and m[1] or 0
+  local p = Pr.ah(id)
+  if p and p * (1 - Pr.AH_CUT) > v then v = p * (1 - Pr.AH_CUT) end
+  return v
+end
+
 -- what you pay for one: price, how ("vendor" | "ah"), source, age of an auction price in seconds; or nil
 function Pr.unit(id)
   local v = Pr.vendor(id)
