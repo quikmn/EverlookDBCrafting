@@ -1,6 +1,6 @@
 # EverlookDB Crafting
 
-## Unreleased
+## v0.9.1 (2026-11-26)
 - Crafting queue: the window opens wider, so each recipe's status, profit and stock line is no longer cut off. "makes 5" only shows when a craft makes more than one.
 
 ## v0.9.0 (2026-11-25)
