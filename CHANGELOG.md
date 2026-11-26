@@ -1,6 +1,6 @@
 # EverlookDB Crafting
 
-## Unreleased
+## v0.9.3 (2026-11-26)
 - Windows: whichever window you click comes to the front. Click the auction house (or bags, spellbook...) and it shows over this window; click this window to bring it back.
 
 ## v0.9.2 (2026-11-26)
