@@ -267,9 +267,10 @@ local function route(recipes, o, excluded, base)
     if not excluded[r] and (r.skip == nil or r.skip == "") and costOf(r) < INF then usable[#usable + 1] = r end
   end
   local steps, stall, points = P.guide(usable, costOf, o.from, o.to, o.worth)
-  local total, seen = 0, {}
+  local total, gross, seen = 0, 0, {}
   for _, st in ipairs(steps) do
     st.each, st.est = rcost[st.r], est[st.r]
+    gross = gross + st.n * rcost[st.r]
     st.back = o.back and o.back(st.r) or nil
     total = total + st.n * net[st.r]
     if not seen[st.r] then
@@ -278,7 +279,7 @@ local function route(recipes, o, excluded, base)
       total = total + (once[st.r] or 0)
     end
   end
-  return { steps = steps, stall = stall, total = total, cost = cost, once = once, pool = pool, points = points }
+  return { steps = steps, stall = stall, total = total, gross = gross, cost = cost, once = once, pool = pool, points = points }
 end
 
 -- The shopping list of a route, the site's shopping(): each step's materials, expanded into what they are made of
@@ -434,12 +435,11 @@ function P.plan(recipes, o)
       for _, st in ipairs(cands) do
         excluded[st.r] = true
         local alt = route(recipes, o, excluded, base)
-        -- never at the price of more yellow or green points (reliable skill-ups come before gold), unless the route
-        -- then costs less than 1 / ORANGE_WORTH of the other; more green points never
+        -- never at the price of more yellow or green points (reliable skill-ups come before gold), unless the
+        -- recipe alone costs more than ORANGE_WORTH times all the materials of the route (not at any price)
         local asReliable = alt.points.green <= res.points.green
           and alt.points.green + alt.points.yellow <= res.points.green + res.points.yellow
-        if reach(alt) >= reach(res) and alt.total < res.total - 1 and (asReliable
-          or (alt.points.green <= res.points.green and alt.total * P.ORANGE_WORTH < res.total)) then
+        if reach(alt) >= reach(res) and alt.total < res.total - 1 and (asReliable or (st.once or 0) > P.ORANGE_WORTH * res.gross) then
           res, improved = alt, true
           break
         end
