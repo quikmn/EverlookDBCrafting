@@ -1,6 +1,6 @@
 # EverlookDB Crafting
 
-## Unreleased
+## v0.9.2 (2026-11-26)
 - A recipe whose learn skill is only an estimate now reads like "learn at ~30 or 85" when the data gives two figures.
 - Skill-up planner: shopping list rows without a Map, Buy or Make instead button use the whole row for their details, so fewer lines are cut off. Hover a row to read a cut-off line in full.
 - Settings search: the sidebar lights the page of the top result while you search.
