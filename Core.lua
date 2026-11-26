@@ -101,6 +101,7 @@ ns.DEFAULTS = {
     autoGuide = false,       -- open the guide with the profession window, when that profession has a route
     windowScale = 1,         -- the Crafting list and the recipe browser
     otherSide = false,       -- the recipe browser lists the other faction's recipes too
+    planButton = true,       -- the Skill-up plan button under the profession window
   },
   chars = {},
   list = {},                 -- the Crafting list: { { spell, n (crafts) } }
@@ -108,6 +109,7 @@ ns.DEFAULTS = {
   favs = {},                 -- recipe browser favourites: spell -> true
   fixes = {},
   seen = {},
+  hints = {},                -- one-time chat hints already shown on this account: name -> true
 }
 
 function ns.db() return EverlookCraftDB end

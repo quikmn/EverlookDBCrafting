@@ -1,5 +1,9 @@
 # EverlookDB Crafting
 
+## Unreleased
+- New: a "Skill-up plan" button under your profession window, beside Craft next. A click opens the skill-up planner for that profession, or your route's guide when you have one; right-click always opens the planner. Turn it off in /ecraft > Profession window.
+- The first time you open a profession window, a one-time tip in chat says how /ecraft plan finds the cheapest way to level it.
+
 ## v0.9.3 (2026-11-26)
 - Windows: whichever window you click comes to the front. Click the auction house (or bags, spellbook...) and it shows over this window; click this window to bring it back.
 

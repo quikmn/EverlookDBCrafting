@@ -25,6 +25,8 @@ Level your professions the cheap and reliable way on WoW Forever. Type `/ecraft`
   "Keep 20 in stock" refills the queue by itself when you have fewer, counting bags, bank, mail, alts and auctions.
 - **Craft next.** One button under your profession window, like "Craft next: 5 Bolt of Silk Cloth". Each click crafts
   the next ready recipe of the queue, skips the ones without materials, and ticks them off as they're made.
+- **Skill-up plan.** A small button beside it opens the planner for the profession on screen, or your route's
+  guide when you have one.
 - **Recipe browser** (`/ecraft recipes`). Every recipe of a profession, learned or not. Search by name or reagent
   ("silk cloth"), see where each reagent comes from, how to learn the recipe and which of your characters know it.
 - **Merchant's Favor** (`/ecraft favor`). Every Waylaid Crate ranked by gold per Favor at today's prices, with a Map

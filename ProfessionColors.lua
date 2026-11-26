@@ -622,6 +622,10 @@ app:Section("colors", "Profession window", function(stack)
   app:Widget(stack, "colors.chance")
   app:Widget(stack, "colors.count")
   app:Widget(stack, "colors.countmore")
+  if app:GetSetting("profwin.planbutton") then
+    UI.Header(stack, "Under the window", "\"Skill-up plan\" opens the planner (or your route's guide) for the profession on screen.")
+    app:Widget(stack, "profwin.planbutton")
+  end
   UI.Stat(stack, "CraftColors", function()
     if M.standDown then return "|cffffd100an older CraftColors is drawing|r: disable it (it's part of this addon now)" end
     if addonLoaded("CraftColors") then return "|cff8d94a3enabled, standing down|r: you can disable it" end

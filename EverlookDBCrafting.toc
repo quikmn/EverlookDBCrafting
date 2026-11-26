@@ -34,6 +34,7 @@ BrowserWindow.lua
 Tooltips.lua
 ProfessionColors.lua
 QueueButton.lua
+PlanButton.lua
 SkillCards.lua
 Guild.lua
 Capture.lua
