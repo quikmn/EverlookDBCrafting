@@ -1,6 +1,6 @@
 # EverlookDB Crafting
 
-## Unreleased
+## v0.11.1 (2026-11-27)
 - Characters list: bag counts are up to date again, and old bank counts are no longer shown as if they were current.
 - The recipe browser's "can make now" counts what is in your bags right now.
 
