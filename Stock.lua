@@ -148,6 +148,32 @@ function St.bagsOf(c)
   return out
 end
 
+-- What one character carries, for the Characters list: { bags, bank, bankAt, seenAt, shared }. bags/bank are item
+-- totals, nil when not known. With EverlookDB Auctions' inventory this addon stops counting, so its own saved counts
+-- are old: the bags come from the inventory instead (when it has seen the character), and the bank, which the
+-- inventory doesn't hand out per character, is left out rather than shown stale.
+local function total(t)
+  local n = 0
+  for _, v in pairs(type(t) == "table" and t or {}) do n = n + (tonumber(v) or 0) end
+  return n
+end
+function St.charCounts(c)
+  if type(c) ~= "table" then return {} end
+  local inv = St.shared()
+  if not inv then
+    return { bags = c.bags and total(c.bags) or nil, bank = c.bank and total(c.bank) or nil, bankAt = c.bankAt,
+      seenAt = c.bagsAt }
+  end
+  local res = { shared = true }
+  local b = c.name and try(inv.bagsOf, c.name, c.realmID)
+  if type(b) == "table" then res.bags = total(b) end
+  local list = type(inv.characters) == "function" and try(inv.characters)
+  for _, e in ipairs(type(list) == "table" and list or {}) do
+    if e.name == c.name then res.seenAt = tonumber(e.at); break end
+  end
+  return res
+end
+
 -- EverlookDB Auctions read new counts: the windows that show them follow
 local listening = false
 function St.listen()

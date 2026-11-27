@@ -87,7 +87,7 @@ end
 -- how many you can make with what is in your bags now (the game's own count does the same)
 function B.canMake(r)
   local me = ns.me()
-  local bags = me and me.bags or {}
+  local bags = (me and ns.stock.bagsOf(me)) or {}
   local n
   for _, m in ipairs((ns.matsOf(r))) do
     local k = math.floor((bags[m[1]] or 0) / m[2])

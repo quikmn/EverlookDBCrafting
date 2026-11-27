@@ -669,12 +669,6 @@ local function charRows()
   return out
 end
 
-local function countItems(t)
-  local n = 0
-  for _, v in pairs(t or {}) do n = n + v end
-  return n
-end
-
 app:Section("characters", "Characters", function(stack)
   UI.Header(stack, "Characters", "Your characters this addon has seen, their professions and what they carry. Kept only on this PC, in this addon's own saved variables: never uploaded.")
   UI.List(stack, {
@@ -695,8 +689,14 @@ app:Section("characters", "Characters", function(stack)
         if ns.DATA.profs[id] then profs[#profs + 1] = ("%s %s"):format(ns.profName(id), p.rank or "?") end
       end
       table.sort(profs)
-      return ("%s  \194\183  %d in bags, %d in bank (bank %s)"):format(#profs > 0 and table.concat(profs, ", ") or "no professions read",
-        countItems(c.bags), countItems(c.bank), ago(c.bankAt))
+      local profText = #profs > 0 and table.concat(profs, ", ") or "no professions read"
+      local k = ns.stock.charCounts(c)
+      if k.shared then
+        -- counted by EverlookDB Auctions: its bags, never this addon's old copy
+        if not k.bags then return ("%s  \194\183  bags not seen yet"):format(profText) end
+        return ("%s  \194\183  %d in bags%s"):format(profText, k.bags, k.seenAt and (" (seen " .. ago(k.seenAt) .. ")") or "")
+      end
+      return ("%s  \194\183  %d in bags, %d in bank (bank %s)"):format(profText, k.bags or 0, k.bank or 0, ago(k.bankAt))
     end,
     buttons = { { label = "Forget", width = 80, confirm = true, shown = function(e) return e.guid ~= ns.guid() end,
       onClick = function(e) EverlookCraftDB.chars[e.guid] = nil; app:Refresh() end } },

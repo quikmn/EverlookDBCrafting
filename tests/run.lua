@@ -891,5 +891,36 @@ step("stock from EverlookDB Auctions' inventory (API v7): mail counts, alts foll
   eq(ns.stock.have(2589).bags, 1, "without it: the own counts again")
 end)
 
+step("characters list: with the shared inventory, its bags and never this addon's old counts", function()
+  local me = ns.me()
+  me.bags, me.bank, me.bankAt = { [2589] = 4 }, { [2589] = 50 }, 1 -- old, frozen counts
+  local alt = { name = "Mara", realmID = 1, bags = { [2589] = 99 }, bank = { [2589] = 99 }, bankAt = 1 }
+  local k = ns.stock.charCounts(alt)
+  eq(k.bags, 99, "own counts without the shared store"); eq(k.bank, 99, "bank"); check(not k.shared, "not shared")
+  EverlookDBAuctionsAPI = { version = 7, inventory = {
+    count = function() return { chars = {} } end,
+    owned = function() return {} end,
+    bagsOf = function(name, realmID)
+      if name == "Mara" and realmID == 1 then return { [2589] = 9, [2592] = 3 } end
+      if name == me.name then return { [2589] = 30 } end
+    end,
+    characters = function() return { { name = "Mara", at = time() - 120 } } end,
+    onChange = function() end,
+  } }
+  k = ns.stock.charCounts(alt)
+  check(k.shared, "shared"); eq(k.bags, 12, "live bags from the inventory")
+  eq(k.bank, nil, "no stale bank count"); check(k.seenAt and k.seenAt > 0, "last seen from the inventory")
+  k = ns.stock.charCounts({ name = "Nobody", realmID = 1, bags = { [2589] = 5 } })
+  eq(k.bags, nil, "a character the inventory hasn't seen: no old number")
+  -- "can make now" counts the live bags too
+  local r = { id = 1 }
+  local realMats = ns.matsOf
+  ns.matsOf = function() return { { 2589, 3 } } end
+  eq(ns.browser.canMake(r), 10, "can make from the inventory's bags (30 / 3), not the frozen 4")
+  ns.matsOf = realMats
+  EverlookDBAuctionsAPI = nil
+  eq(ns.stock.charCounts(alt).bags, 99, "without it: the own counts again")
+end)
+
 print(("%d passed, %d failed"):format(passes, #failures))
 return #failures

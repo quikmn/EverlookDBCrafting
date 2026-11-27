@@ -1,5 +1,9 @@
 # EverlookDB Crafting
 
+## Unreleased
+- Characters list: bag counts are up to date again, and old bank counts are no longer shown as if they were current.
+- The recipe browser's "can make now" counts what is in your bags right now.
+
 ## v0.11.0 (2026-11-27)
 - Skill-up planner: routes are more reliable. Orange recipes come first because they always give a point, then yellow ones. A green recipe is only used when nothing orange or yellow exists at that skill, and the step says so.
 - Skill-up planner: the cheapest route now counts what a craft gets back for sure: its vendor price, or its auction price for potions, bolts, bars and other goods that sell every day. When two recipes cost about the same, the one whose product is worth more wins. The planner shows what the crafts get back.
